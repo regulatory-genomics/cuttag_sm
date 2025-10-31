@@ -1,7 +1,7 @@
 name: cutTag_diffbind
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
   - bioconductor-annotate
@@ -161,7 +161,8 @@ dependencies:
   - r-scales
   - r-snow
   - r-squarem
-  - r-stringi
+  - r-stringi>=1.7
+  - icu>=69
   - r-stringr
   - r-survival
   - r-sys

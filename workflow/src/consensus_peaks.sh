@@ -65,19 +65,27 @@ for condition in $all_conditions; do
 	echo -e "All replicates:\n${all_replicates}\n"
 
     # find widest peak that appear in at least n replicates + export to tmp file.
-    cat $all_replicates | cut -f1-3 | sort -k1,1 -k2,2n | bedtools merge | \
-    bedtools intersect -c -a stdin -b $all_replicates | \
-    awk -v n=$N_INTERSECTS '$4 >= n' | awk -v OFS='\t' '{print $1,$2,$3}' > $tmp_output
+    if [ -z "$all_replicates" ]; then
+        : > "$tmp_output"
+    else
+        cat $all_replicates | cut -f1-3 | sort -k1,1 -k2,2n | bedtools merge | \
+        bedtools intersect -c -a stdin -b $all_replicates | \
+        awk -v n=$N_INTERSECTS '$4 >= n' | awk -v OFS='\t' '{print $1,$2,$3}' > "$tmp_output"
+    fi
 
 done
 
 # merge intervals for all tmp files and export as consensus peak.
-all_temp_files=$(find ${OUTPUT_BASE_DIR}/counts -name "${MARK}.*.tmp.bed" | sort | tr '\n' ' ')
+all_temp_files=$(find ${OUTPUT_BASE_DIR}/counts -name "${MARK}.*.tmp.bed" -size +0c | sort | tr '\n' ' ')
 
 echo -e "All temp files:\n${all_temp_files}\n"
 
-cat $all_temp_files | sort -k1,1 -k2,2n | bedtools merge > ${OUTPUT_BASE_DIR}/counts/${MARK}_consensus.bed
-rm $all_temp_files
+if [ -z "$all_temp_files" ]; then
+    : > ${OUTPUT_BASE_DIR}/counts/${MARK}_consensus.bed
+else
+    cat $all_temp_files | sort -k1,1 -k2,2n | bedtools merge > ${OUTPUT_BASE_DIR}/counts/${MARK}_consensus.bed
+    rm $all_temp_files
+fi
 
 # count the number of reads per union peak
 bedtools multicov -bams ${OUTPUT_BASE_DIR}/markd/*${MARK}.sorted.markd.bam -bed ${OUTPUT_BASE_DIR}/counts/${MARK}_consensus.bed -D > ${OUTFILE}_tmp

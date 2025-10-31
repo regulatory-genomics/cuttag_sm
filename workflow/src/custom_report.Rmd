@@ -11,6 +11,8 @@ params:
     value: x
   blacklist_file:
     value: x
+  samplesheet:
+    value: x
 ---
 
 
@@ -24,6 +26,7 @@ library(dplyr)
 library(stringr)
 library(jsonlite)
 library(R.utils)
+library(readr)
 
 ```
 
@@ -94,34 +97,13 @@ multiqc_data <- jsonlite::read_json(tmp_json_path, simplifyVector = TRUE)
 # get data from each tool used
 multiqc_rawdata <- multiqc_data$report_saved_raw_data
 
-# get the sample names including condition, replicate, mark
-condition_rep_marks <- stringr::str_split(
-	string = names(multiqc_rawdata$multiqc_fastp),
-	pattern = "_R1$|_R2$", 
-	simplify = TRUE
-)[,1]
+# read samplesheet to get sample, condition, and mark
+st <- readr::read_tsv(params$samplesheet, show_col_types = FALSE)
 
-# get the sample names (excluding replicates)
-condition_rep_marks_strsplit <- stringr::str_split(
-	string = condition_rep_marks,
-	pattern = "_",
-	simplify = TRUE
-) 
-
-# reorder condition, rep, and mark in sample names so that mark is listed first and samples are easily sorted by mark and condition
-mark_condition_reps <- paste(
-	condition_rep_marks_strsplit[,3],
-	condition_rep_marks_strsplit[,1],
-	condition_rep_marks_strsplit[,2],
-	sep = "_"
-)
-
-mark_conditions <- 
-	paste(
-		condition_rep_marks_strsplit[,3], 
-		condition_rep_marks_strsplit[,1], 
-		sep = "_") |> 
-	unique()
+# use sample column to match MultiQC keys and build labels via metadata
+condition_rep_marks <- st$sample
+mark_condition_reps <- paste(st$mark, st$condition, st$sample, sep = "_")
+mark_conditions <- unique(paste(st$mark, st$condition, sep = "_"))
 
 
 # create data frames with data retrieved from multiqc_rawdata nested lists

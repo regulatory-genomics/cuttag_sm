@@ -36,8 +36,8 @@ rule frip_plot:
         ])
         fig.update_layout(barmode='stack', 
             title='Fraction of Reads in Peaks by Sample', 
-            xaxis_tickfont_size=14, yaxis=dict(title='Fraction of reads in peaks', 
-            titlefont_size=16, tickfont_size=14), xaxis=dict(title='Samples'))
+            xaxis=dict(title='Samples', tickfont=dict(size=14)),
+            yaxis=dict(title='Fraction of reads in peaks', tickfont=dict(size=14)))
         fig.write_html(str(output))
 
 
@@ -91,7 +91,7 @@ rule multiqc:
     shell:
         # comment out the "export ..." line if not running pipeline through Singularity
         f"export LC_ALL=C.UTF-8; export LANG=C.UTF-8; "
-        f"multiqc {DATA_DIR}/ -f -c src/multiqc_conf.yml -o {DATA_DIR}/multiqc --ignore {DATA_DIR}/homer > {{log}} 2>&1"
+        f"multiqc {DATA_DIR}/ -f -c workflow/src/multiqc_conf.yml -o {DATA_DIR}/multiqc --ignore {DATA_DIR}/homer > {{log}} 2>&1"
 
 # export different locales for singularity workaround: https://click.palletsprojects.com/en/8.1.x/unicode-support/
 
@@ -103,11 +103,12 @@ rule custom_report:
     output:
         f"{DATA_DIR}/custom_report/custom_report.html"
     params:
-        rmd = "src/custom_report.Rmd",
+        rmd = "workflow/src/custom_report.Rmd",
         output_dir = f"{DATA_DIR}/custom_report",
         callpeaks_folder = f"{DATA_DIR}/callpeaks",
         high_conf_peaks_folder = f"{DATA_DIR}/highConf",
-        blacklist = blacklist_file
+        blacklist = blacklist_file,
+        samplesheet = config["config_file"]
     conda:
         "../envs/knit_rmd.yml"
     singularity:
@@ -118,6 +119,7 @@ rule custom_report:
         multiqc_json=here::here("{input.multiqc_json}"),
         callpeaks_folder=here::here("{params.callpeaks_folder}"),
         high_conf_peaks_folder=here::here("{params.high_conf_peaks_folder}"),
-        blacklist_file=here::here("{params.blacklist}")
+        blacklist_file=here::here("{params.blacklist}"),
+        samplesheet=here::here("{params.samplesheet}")
         ))'
         """

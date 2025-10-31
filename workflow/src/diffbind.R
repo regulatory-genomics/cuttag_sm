@@ -46,6 +46,22 @@ diffbind_main <- function(){
 		dir.create(diffbind_outdir, recursive = TRUE, mode = "774")	
 	}
 
+	# derive mark and early-shortcircuit if consensus is empty
+	mark <- stringr::str_split(
+		string = basename(consensus_peak_file),
+		pattern = "_",
+		simplify = TRUE)[,1]
+	rds_outfile <- file.path(diffbind_outdir, paste0(mark, "_DBAobj.rds"))
+	normcounts_outfile <- file.path(diffbind_outdir, paste0(mark, "_normcounts.csv"))
+
+	if (!file.exists(consensus_peak_file) || file.info(consensus_peak_file)$size == 0) {
+		message("Consensus peak file is missing or empty. Writing empty outputs and exiting.")
+		# write empty normalized counts and an empty RDS placeholder
+		utils::write.csv(x = data.frame(), file = normcounts_outfile, row.names = FALSE)
+		saveRDS(object = NULL, file = rds_outfile)
+		return(invisible(NULL))
+	}
+
 	# read in gene coordinates from refseq file
 	refseq_granges <- 
 		readr::read_tsv(
@@ -59,11 +75,6 @@ diffbind_main <- function(){
 	message("Subsetting metadata for mark/protein of interest...")
 
 	# get mark from input consensus peak file name
-	mark <- stringr::str_split(
-		string = basename(consensus_peak_file),
-		pattern = "_",
-		simplify = TRUE)[,1]
-
 	metadata_df_subset <- metadata_df |>
 		dplyr::filter(Factor == mark)
 
@@ -121,7 +132,6 @@ diffbind_main <- function(){
 	#-------- export diffbind data --------
 	message(date())
 	message("Exporting Diffbind DBA object to RDS file...")
-	rds_outfile <- file.path(diffbind_outdir, paste0(mark, "_DBAobj.rds"))
 	saveRDS(object = dba_obj, file = rds_outfile)
 	message("DBA object saved to: ", rds_outfile)
 
@@ -129,8 +139,7 @@ diffbind_main <- function(){
 	message("Exporting normalized counts table...")
 	normcounts_df <- dba.peakset(dba_obj, bRetrieve = TRUE, DataType = DBA_DATA_FRAME)
 
-	normcounts_outfile <- file.path(diffbind_outdir, paste0(mark, "_normcounts.csv"))
-	write.csv(x = normcounts_df, file = normcounts_outfile, row.names = FALSE)
+	utils::write.csv(x = normcounts_df, file = normcounts_outfile, row.names = FALSE)
 	message("Normalized counts saved to: ", normcounts_outfile)
 
 	

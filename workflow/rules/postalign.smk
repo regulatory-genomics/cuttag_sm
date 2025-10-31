@@ -25,7 +25,7 @@ rule merge_bw:
     singularity:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "mergebw.sif")
     shell:
-        "bash src/mergebw.sh -c {config[CSIZES]} -o {output} {input}"
+        "bash workflow/src/mergebw.sh -c {config[CSIZES]} -o {output} {input}"
 
 rule fraglength:
     input:
@@ -37,7 +37,7 @@ rule fraglength:
     singularity:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "align.sif")
     shell:
-        "src/fraglen-dist.sh {input} {output}"
+        "workflow/src/fraglen-dist.sh {input} {output}"
 
 rule fraglength_plot:
     input:

@@ -47,10 +47,13 @@ if os.path.isfile(blacklist_file):
         singularity:
             "docker://staphb/bedtools:2.30.0"
         shell:
-            "cat {input} | sort -k1,1 -k2,2n | "
+            "files=( {input} ); existing=(); "
+            "for f in ${{files[@]}}; do [ -s \"$f\" ] && existing+=(\"$f\"); done; "
+            "if [ ${{#existing[@]}} -eq 0 ]; then : > {output}; else "
+            "cat ${{existing[@]}} | sort -k1,1 -k2,2n | "
             "bedtools merge | "
-            "bedtools intersect -a - -b {input} -c | "
-            "awk -v OFS='\t' '$4>=2 {{print}}' > {output}"
+            "bedtools intersect -a - -b ${{existing[@]}} -c | "
+            "awk -v OFS='\t' '$4>=2 {{print}}' > {output}; fi"
 else:
     # merge all peaks to get union peak with at least
     # two reps per condition per peak
@@ -64,10 +67,13 @@ else:
         singularity:
             "docker://staphb/bedtools:2.30.0"
         shell:
-            "cat {input} | sort -k1,1 -k2,2n | "
+            "files=( {input} ); existing=(); "
+            "for f in ${{files[@]}}; do [ -s \"$f\" ] && existing+=(\"$f\"); done; "
+            "if [ ${{#existing[@]}} -eq 0 ]; then : > {output}; else "
+            "cat ${{existing[@]}} | sort -k1,1 -k2,2n | "
             "bedtools merge | "
-            "bedtools intersect -a - -b {input} -c | "
-            "awk -v OFS='\t' '$4>=2 {{print}}' > {output}"
+            "bedtools intersect -a - -b ${{existing[@]}} -c | "
+            "awk -v OFS='\t' '$4>=2 {{print}}' > {output}; fi"
 
 
 # get consensus
@@ -84,7 +90,7 @@ rule consensus:
     singularity:
         "docker://staphb/bedtools:2.30.0"
     shell:
-        f"OUTPUT_BASE_DIR=\"{DATA_DIR}\" bash src/consensus_peaks.sh -m {{wildcards.mark}} -n {{config[N_INTERSECTS]}} -o {{output.consensus_counts}} {{params.blacklist_flag}}"
+        f"OUTPUT_BASE_DIR=\"{DATA_DIR}\" bash workflow/src/consensus_peaks.sh -m {{wildcards.mark}} -n {{config[N_INTERSECTS]}} -o {{output.consensus_counts}} {{params.blacklist_flag}}"
 
 rule frip:
     input:
@@ -98,4 +104,4 @@ rule frip:
     log:
         f"{DATA_DIR}/logs/plotEnrichment_{{sample}}.log"
     shell:
-        "bash src/skip_frip.sh {input[0]} {input[1]} {output[0]} {output[1]} {log}"
+        "bash workflow/src/skip_frip.sh {input[0]} {input[1]} {output[0]} {output[1]} {log}"

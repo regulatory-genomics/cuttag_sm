@@ -41,28 +41,56 @@ if (!dir.exists(outdir)) {
 # read in genes file
 genestab = read_tsv(genes, col_names=c("seqnames", "start", "end", "name", "score", "strand")) %>% GRanges()
 
-# counts join
-peaks = read_tsv(input) %>% 
-    mutate(row=row_number()) %>%
-    mutate(name=paste0("peak", as.character(row)))
-        
+# read counts and metadata safely
+counts_raw <- tryCatch({ read.delim(input, header=TRUE, stringsAsFactors=FALSE, check.names=FALSE) }, error = function(e) NULL)
+meta_df <- tryCatch({ read.csv(meta, header=TRUE, stringsAsFactors=FALSE) }, error = function(e) NULL)
 
-# read in counts table
-counts = read.delim(input, header=T, stringsAsFactors = F, check.names=F) %>%
-    mutate(row=row_number()) %>%
-    mutate(peak=paste0("peak", as.character(row)))
-rownames(counts) = counts$peak
-counts = counts[,4:ncol(counts)]
+# handle empty or invalid inputs
+if (is.null(counts_raw) || nrow(counts_raw) == 0 || ncol(counts_raw) < 4 || is.null(meta_df) || nrow(meta_df) == 0) {
+    message("Counts or metadata missing/empty. Writing empty outputs and exiting.")
+    utils::write.csv(data.frame(), normCount, row.names=FALSE)
+    utils::write.csv(data.frame(), lnormCount, row.names=FALSE)
+    # create blank PDFs
+    pdf(sdMeanRld); plot.new(); dev.off()
+    pdf(sdMeanVsd); plot.new(); dev.off()
+    pdf(sampleDistPlotVsd); plot.new(); dev.off()
+    pdf(sampleDistPlotRld); plot.new(); dev.off()
+    pdf(pcaPlot); plot.new(); dev.off()
+    pdf(pcaPlotVsd); plot.new(); dev.off()
+    saveRDS(NULL, rds)
+    quit(save="no")
+}
 
-# read in metadata
-meta <- read.csv(meta, header = T, stringsAsFactors = F)
+# counts join for annot
+dummy_peaks <- tibble(row = seq_len(nrow(counts_raw))) %>% mutate(name=paste0("peak", as.character(row)))
 
-# make the meta reflect the available sample names
-meta = meta[meta$sample %in% colnames(counts),]
+# prepare counts
+counts <- counts_raw %>%
+    mutate(row = dplyr::row_number()) %>%
+    mutate(peak = paste0("peak", as.character(row)))
+rownames(counts) <- counts$peak
+counts <- counts[, 4:ncol(counts)]
 
-# make sure meta rownames and counts colnames in the same order.
+# filter metadata to present samples
+meta <- meta_df
+meta <- meta[meta$sample %in% colnames(counts), ]
+if (nrow(meta) < 2 || length(unique(meta$condition)) < 2) {
+    message("Insufficient samples/conditions for DESeq2. Writing empty outputs and exiting.")
+    utils::write.csv(data.frame(), normCount, row.names=FALSE)
+    utils::write.csv(data.frame(), lnormCount, row.names=FALSE)
+    pdf(sdMeanRld); plot.new(); dev.off()
+    pdf(sdMeanVsd); plot.new(); dev.off()
+    pdf(sampleDistPlotVsd); plot.new(); dev.off()
+    pdf(sampleDistPlotRld); plot.new(); dev.off()
+    pdf(pcaPlot); plot.new(); dev.off()
+    pdf(pcaPlotVsd); plot.new(); dev.off()
+    saveRDS(NULL, rds)
+    quit(save="no")
+}
+
+# align order
 rownames(meta) <- meta$sample
-counts <- counts[, rownames(meta)]
+counts <- counts[, rownames(meta), drop=FALSE]
 stopifnot(rownames(meta) == colnames(counts))
 
 message('calculating deseq...')
@@ -77,7 +105,7 @@ normCounts <- counts(dds, normalized=TRUE)
 normCounts <- 0.00001+(normCounts) # ensure nonzero 
 lnormCounts <- log2(normCounts)
 lnormCounts <- as.data.frame(lnormCounts)
-lnormCounts$ID <- counts$peak
+lnormCounts$ID <- rownames(lnormCounts)
 print(head(lnormCounts))
 write.csv(normCounts, normCount)
 write.csv(lnormCounts, lnormCount) 
@@ -170,7 +198,7 @@ for (k in 1:length(lsc)) {
     # annottate peaks
     diffexp=res %>% 
         as_tibble(rownames='name') %>%
-        left_join(peaks) %>%
+        left_join(dummy_peaks, by=c("name"="name")) %>%
         GRanges() %>%
         join_nearest(genestab, suffix=c(".peak", ".gene")) %>%
         as_tibble() 
@@ -231,9 +259,9 @@ for (k in 1:length(lsc)) {
 
         # subset counts by sig peaks
         print(head(lnormCounts))
-        counts <- rownames_to_column(lnormCounts, var="peak")  %>% as_tibble()
-        print(head(counts))
-        sigcounts <- counts %>% filter(peak %in% sig$name.peak)
+        counts_df <- rownames_to_column(lnormCounts, var="peak")  %>% as_tibble()
+        print(head(counts_df))
+        sigcounts <- counts_df %>% filter(peak %in% sig$name.peak)
 
         # organize samples by condition                               
         meta_conditions <- meta %>% group_by(condition) %>% 
@@ -260,18 +288,18 @@ for (k in 1:length(lsc)) {
         annots=merge.data.frame(clustdf, direction, by=0, all = T) %>% select(-log2FoldChange)
         rownames(annots)=annots[,1]
         annots[,1]=NULL
-	
+    
         # get a numebr of unique colors
         cols=RColorBrewer::brewer.pal(numclusters, name="Set1")
-	
+    
         # name the colors by cluster
         names(cols) = unique(clustdf$cluster)
-	
+    
         # set cluster colors
         colors = list(
         cluster=cols
         )	
-	
+    
         heattitle=paste0(exp_prefix,"-",rname)
         # create heatmap
         heat <- pheatmap(scaled,

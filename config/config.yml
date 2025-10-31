@@ -6,7 +6,7 @@ USE_SINGULARITY: True
 SINGULARITY_IMAGE_FOLDER: "/home/groups/MaxsonLab/software/singularity-containers/pipeline_containers/cuttag/image_files"
 
 # Quality Control -------------------------------------------------------------
-FASTQ_SCREEN: src/fastq_screen.conf
+FASTQ_SCREEN: config/fastq_screen.conf
 
 # Adapter Trimming ------------------------------------------------------------
 # option to trim adapters from raw reads to improve alignment rate (True or False)
@@ -18,7 +18,7 @@ ADAPTER_FASTA: genes/adapter_seqs.fa
 
 
 # Alignment + preprocessing -------------------------------------------------------------------
-GENOME: /data2/litian/database/bowtie2/resources/atacseq_pipeline/hg38/indices_for_Bowtie2
+GENOME: /data2/litian/database/bowtie2/resources/atacseq_pipeline/hg38/indices_for_Bowtie2/hg38
 # /home/groups/MaxsonLab/indices/GRch38/bowtie2/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bowtie_index
 # /home/groups/MaxsonLab/indices/mm10/bowtie2/mm10
 
