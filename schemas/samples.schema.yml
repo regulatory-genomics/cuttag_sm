@@ -6,6 +6,9 @@ properties:
     type: string
     description: unique sample name / identifier
     #pattern: "(.+)_([0-9]+)_(.+)"
+  run:
+    type: integer
+    description: lane number
   R1:
     type: string
     description: path to the the read1 fastq file
@@ -29,6 +32,7 @@ properties:
 
 required:
   - sample
+  - run
   - R1
   - R2
   - mark

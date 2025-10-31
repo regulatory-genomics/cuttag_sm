@@ -1,15 +1,15 @@
 
 DATA_DIR = config["output_base_dir"].rstrip("/")
 
-# align samples to genome
+# align runs to genome (per-run)
 rule bowtie2:
     input:
-        r1 = (lambda wc: f"{DATA_DIR}/fastp/{wc.sample}_R1.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input(wc)[0]),
-        r2 = (lambda wc: f"{DATA_DIR}/fastp/{wc.sample}_R2.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input(wc)[1])
+        r1 = (lambda wc: f"{DATA_DIR}/fastp/{wc.sample}.{wc.run}_R1.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[0]),
+        r2 = (lambda wc: f"{DATA_DIR}/fastp/{wc.sample}.{wc.run}_R2.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[1])
     output:
-        f"{DATA_DIR}/aligned/{{sample}}.bam"
+        f"{DATA_DIR}/aligned/{{sample}}.{{run}}.bam"
     log:
-        err=f"{DATA_DIR}/logs/bowtie2_{{sample}}.err"
+        err=f"{DATA_DIR}/logs/bowtie2_{{sample}}.{{run}}.err"
     conda:
         "../envs/align.yml"
     singularity:
@@ -24,22 +24,37 @@ rule bowtie2:
 
 rule sort:
     input:
-        f"{DATA_DIR}/aligned/{{sample}}.bam"
+        f"{DATA_DIR}/aligned/{{sample}}.{{run}}.bam"
     output: 
-        temp(f"{DATA_DIR}/aligned/{{sample}}.sort.bam")
+        temp(f"{DATA_DIR}/aligned/{{sample}}.{{run}}.sort.bam")
     conda:
         "../envs/sambamba.yml"
     singularity:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "sambamba.sif")
     threads: 4
     log:
-        f"{DATA_DIR}/logs/sambamba_sort_{{sample}}.log"
+        f"{DATA_DIR}/logs/sambamba_sort_{{sample}}.{{run}}.log"
     shell:
         f"sambamba sort --tmpdir={DATA_DIR}/aligned -t {{threads}} -o {{output}} {{input}} > {{log}} 2>&1"
 
+rule merge_runs:
+    input:
+        get_sorted_bams_for_sample
+    output:
+        f"{DATA_DIR}/aligned/{{sample}}.merged.bam"
+    conda:
+        "../envs/align.yml"
+    singularity:
+        os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "sambamba.sif")
+    threads: 4
+    log:
+        f"{DATA_DIR}/logs/samtools_merge_{{sample}}.log"
+    shell:
+        "samtools merge -@ {threads} {output} {input} > {log} 2>&1"
+
 rule markdup:
     input:
-        rules.sort.output
+        rules.merge_runs.output
     output:
         f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam"
     conda:

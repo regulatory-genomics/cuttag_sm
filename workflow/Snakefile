@@ -5,8 +5,8 @@ from pathlib import Path,PurePath,PurePosixPath
 from collections import defaultdict
 import pandas as pd
 from snakemake.utils import validate, min_version
-import plotly as plt
-import plotly.graph_objects as go
+#import plotly as plt
+#import plotly.graph_objects as go
 
 ##### set minimum snakemake version #####
 min_version("5.32.0")
@@ -19,21 +19,27 @@ configfile: "config.yml"
 validate(config, schema="../schemas/config.schema.yml")
 
 SAMPLE_SHEET = config["config_file"]
-st = pd.read_table(SAMPLE_SHEET).set_index('sample',drop=False)
+st = pd.read_table(SAMPLE_SHEET, sep='\t',index_col=False)
 validate(st, schema="../schemas/samples.schema.yml")
+if 'sample' in st.columns:
+    st['sample'] = st['sample'].astype(str)
+if 'run' in st.columns:
+    st['run'] = st['run'].astype(str)
+st = st.set_index('sample', drop=False)
 
-deseq2_md = pd.read_table("config/deseq2_metadata.csv", sep = ",").set_index('sample', drop = False)
-validate(deseq2_md, schema="../schemas/deseq2.schema.yml")
 
-diffbind_md = pd.read_table("config/diffbind_config.csv", sep = ",").set_index('SampleID', drop = False)
-validate(diffbind_md, schema="../schemas/diffbind.schema.yml")
+#deseq2_md = pd.read_table("config/deseq2_metadata.csv", sep = ",").set_index('sample', drop = False)
+#validate(deseq2_md, schema="../schemas/deseq2.schema.yml")
+
+#diffbind_md = pd.read_table("config/diffbind_config.csv", sep = ",").set_index('SampleID', drop = False)
+#validate(diffbind_md, schema="../schemas/diffbind.schema.yml")
 
 # parse config files
 
 samps = get_samples()
-reads= get_reads()
-marks=get_marks()
-mark_conditions=get_mark_conditions()
+reads = get_reads()
+marks = get_marks()
+mark_conditions = get_mark_conditions()
 
 # base output directory from config
 DATA_DIR = config["output_base_dir"].rstrip("/")
@@ -41,7 +47,6 @@ DATA_DIR = config["output_base_dir"].rstrip("/")
 if not os.path.exists(os.path.join(DATA_DIR, "fastqc")):
     os.makedirs(os.path.join(DATA_DIR, "fastqc"))
 
-marks = get_marks()
 sample_noigg = [k for k in samps if config["IGG"] not in k]
 marks_noigg = [m for m in marks if config["IGG"] not in m]
 

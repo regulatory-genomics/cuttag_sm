@@ -10,13 +10,13 @@ def get_samples():
     """
     return list of samples from samplesheet.tsv
     """
-    return list(st.index)
+    return sorted(list(pd.Index(st.index).unique()))
 
 def get_marks():
     """
     return list of marks from samplesheet.tsv
     """
-    return list(st['mark'])
+    return sorted(list(st['mark'].astype(str).unique()))
 
 def get_mark_conditions():
     """
@@ -54,17 +54,68 @@ def get_bowtie2_input(wildcards):
     """
     returns reads associated with a sample
     """
-    r1=st.loc[wildcards.sample]['R1']
-    r2=st.loc[wildcards.sample]['R2']
-    return r1,r2
+    try:
+        r1=st.loc[wildcards.sample]['R1']
+        r2=st.loc[wildcards.sample]['R2']
+        return r1,r2
+    except Exception:
+        row = st[st['sample'] == wildcards.sample].iloc[0]
+        return row['R1'], row['R2']
+
+def get_bowtie2_input_by_run(wildcards):
+    """
+    returns reads associated with a specific sample/run row
+    requires 'sample' and 'run' wildcards
+    """
+    row = st[(st['sample'] == wildcards.sample) & (st['run'] == wildcards.run)]
+    if row.empty:
+        raise ValueError(f"No samplesheet row for sample={wildcards.sample}, run={wildcards.run}")
+    row = row.iloc[0]
+    return row['R1'], row['R2']
+
+def get_runs_for_sample(wildcards):
+    """
+    return list of run identifiers for a biological sample
+    """
+    runs = st[st['sample'] == wildcards.sample]['run'].astype(str).tolist()
+    return runs
+
+def get_sorted_bams_for_sample(wildcards):
+    """
+    Build paths to per-run sorted BAMs for a sample
+    """
+    runs = get_runs_for_sample(wildcards)
+    return [f"{get_data_dir()}/aligned/{wildcards.sample}.{r}.sort.bam" for r in runs]
 
 def get_reads():
     """
     get list of all reads
     """
-    rlist=list(st['R1'])+list(st['R2'])
-    rlist=[os.path.basename(f).split('.')[0] for f in rlist]
-    return rlist
+    reads = []
+    for _, row in st.iterrows():
+        sample = row['sample']
+        run = str(row['run']) if 'run' in row else '1'
+        reads.append(f"{sample}.{run}_R1")
+        reads.append(f"{sample}.{run}_R2")
+    return reads
+
+def get_fastqc_outputs():
+    outputs = []
+    for _, row in st.iterrows():
+        sample = row['sample']
+        run = str(row['run']) if 'run' in row else '1'
+        for mate in ['R1','R2']:
+            outputs.append(f"{get_data_dir()}/fastqc/{sample}.{run}_{mate}_fastqc.zip")
+    return outputs
+
+def get_fastq_screen_outputs():
+    outputs = []
+    for _, row in st.iterrows():
+        sample = row['sample']
+        run = str(row['run']) if 'run' in row else '1'
+        for mate in ['R1','R2']:
+            outputs.append(f"{get_data_dir()}/fastq_screen/{sample}.{run}_{mate}_screen.txt")
+    return outputs
 
 def get_igg(wildcards):
     """

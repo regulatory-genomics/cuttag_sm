@@ -61,4 +61,3 @@ rule deseq2:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "deseq2.sif")
     script:
         "../src/deseq2.R"
-# normalize by reads in peaks

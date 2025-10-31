@@ -88,10 +88,11 @@ else
 fi
 
 # count the number of reads per union peak
-bedtools multicov -bams ${OUTPUT_BASE_DIR}/markd/*${MARK}.sorted.markd.bam -bed ${OUTPUT_BASE_DIR}/counts/${MARK}_consensus.bed -D > ${OUTFILE}_tmp
+# Use all sample BAMs; filenames do not include the mark identifier
+bedtools multicov -bams ${OUTPUT_BASE_DIR}/markd/*.sorted.markd.bam -bed ${OUTPUT_BASE_DIR}/counts/${MARK}_consensus.bed -D > ${OUTFILE}_tmp
 
 # label the counts table
-ls ${OUTPUT_BASE_DIR}/markd/*${MARK}.sorted.markd.bam  | sed 's!.*/!!' | cut -d. -f1 | xargs |  tr ' ' '\t' | awk '{print "chrom\tstart\tend\t" $0}' | cat - ${OUTFILE}_tmp > ${OUTFILE}
+ls ${OUTPUT_BASE_DIR}/markd/*.sorted.markd.bam  | sed 's!.*/!!' | cut -d. -f1 | xargs |  tr ' ' '\t' | awk '{print "chrom\tstart\tend\t" $0}' | cat - ${OUTFILE}_tmp > ${OUTFILE}
 
 # remove tmp 
 rm ${OUTFILE}_tmp

@@ -19,26 +19,10 @@ rule frip_plot:
         expand(f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv", sample = sample_noigg)
     output:
         f"{DATA_DIR}/plotEnrichment/frip.html"
-    container: None
-    run:
-        pd.options.plotting.backend = "plotly"
-        dfs = []
-        for i in sorted(input):
-            cond_marker = "_".join(i.split("_")[1:3])
-            temp_df = pd.read_csv(i, sep = "\t", usecols=["percent"]).rename(columns = {'percent': cond_marker})
-            dfs.append(temp_df)
-        frip_df = pd.concat(dfs, axis = 1)
-        frip_df = frip_df.rename(index={0: 'inside'})
-        frip_df.loc["outside"] = 100 - frip_df.loc['inside']
-        fig = go.Figure(data=[
-            go.Bar(name="inside_peaks", x=frip_df.columns, y=frip_df.loc['inside'], marker_color='rgb(255, 201, 57)'),
-            go.Bar(name='outside_peaks', x=frip_df.columns, y=frip_df.loc['outside'], marker_color='rgb(0,39, 118)')
-        ])
-        fig.update_layout(barmode='stack', 
-            title='Fraction of Reads in Peaks by Sample', 
-            xaxis=dict(title='Samples', tickfont=dict(size=14)),
-            yaxis=dict(title='Fraction of reads in peaks', tickfont=dict(size=14)))
-        fig.write_html(str(output))
+    #conda:
+    #    "../envs/plot_report.yml"
+    script:
+        "../src/frip_plot.py"
 
 
 rule preseq:
@@ -71,12 +55,12 @@ rule preseq_lcextrap:
     log:
         f"{DATA_DIR}/logs/preseq_{{sample}}.log"
     shell:
-        "preseq lc_extrap -B {resources.defect_mode} -l 1000000000 -e 1000000000 -o {output} {input} > {log} 2>&1"
+        "preseq lc_extrap -B {resources.defect_mode} -l 1000000000 -e 1000000000 -o {output} {input} > {log} 2>&1 || (echo 'preseq lc_extrap failed; creating empty output' >> {log} 2>&1; : > {output})"
 
 rule multiqc:
     input:
-        expand(f"{DATA_DIR}/fastqc/{{read}}_fastqc.zip", read=reads),
-        expand(f"{DATA_DIR}/fastq_screen/{{read}}_screen.txt", read=reads),
+        get_fastqc_outputs(),
+        get_fastq_screen_outputs(),
         expand(f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv", sample=sample_noigg),
         expand(f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt", sample=samps)
     output:
@@ -91,7 +75,19 @@ rule multiqc:
     shell:
         # comment out the "export ..." line if not running pipeline through Singularity
         f"export LC_ALL=C.UTF-8; export LANG=C.UTF-8; "
-        f"multiqc {DATA_DIR}/ -f -c workflow/src/multiqc_conf.yml -o {DATA_DIR}/multiqc --ignore {DATA_DIR}/homer > {{log}} 2>&1"
+        f"multiqc "
+        f"{DATA_DIR}/fastqc "
+        f"{DATA_DIR}/fastq_screen "
+        f"{DATA_DIR}/plotEnrichment "
+        f"{DATA_DIR}/preseq "
+        f"-f -c workflow/src/multiqc_conf.yml -o {DATA_DIR}/multiqc "
+        f"--ignore {DATA_DIR}/homer "
+        f"--ignore {DATA_DIR}/aligned "
+        f"--ignore {DATA_DIR}/markd "
+        f"--ignore {DATA_DIR}/tracks "
+        f"--ignore {DATA_DIR}/callpeaks "
+        f"--ignore {DATA_DIR}/counts "
+        f"> {{log}} 2>&1"
 
 # export different locales for singularity workaround: https://click.palletsprojects.com/en/8.1.x/unicode-support/
 
