@@ -1,0 +1,9 @@
+name: cutTag-multiqc
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - multiqc=1.14
+  - python=3.10
+  

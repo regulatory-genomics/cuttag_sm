@@ -1,0 +1,101 @@
+
+DATA_DIR = config["output_base_dir"].rstrip("/")
+
+rule callpeaks:
+    input:
+        get_callpeaks
+    output:
+        f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed"
+    conda: 
+        "../envs/gopeaks.yml"
+    singularity:
+        os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "gopeaks.sif")
+    log:
+        f"{DATA_DIR}/callpeaks/{{sample}}_gopeaks.json"
+    params:
+        igg = get_igg,
+        params = callpeaks_params
+    shell:
+        f"gopeaks -b {{input[0]}} {{params.igg}} -o {DATA_DIR}/callpeaks/{{wildcards.sample}} {{params.params}} > {{log}} 2>&1"
+
+
+if os.path.isfile(blacklist_file):
+    rule remove_blacklist:
+        input:
+            f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed"
+        output:
+            f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed"
+        params:
+            blacklist = blacklist_file
+        conda:
+            "../envs/bedtools.yml"
+        singularity:
+            "docker://staphb/bedtools:2.30.0"
+        threads: 1
+        shell:
+            "bedtools intersect -v -a {input} -b {params.blacklist} > {output}"
+
+    # merge all peaks to get union peak with at least
+    # two reps per condition per peak
+    rule make_high_conf_peaks:
+        input:
+            get_peaks_by_mark_condition_blacklist
+        output:
+            f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed"
+        conda:
+            "../envs/bedtools.yml"
+        singularity:
+            "docker://staphb/bedtools:2.30.0"
+        shell:
+            "cat {input} | sort -k1,1 -k2,2n | "
+            "bedtools merge | "
+            "bedtools intersect -a - -b {input} -c | "
+            "awk -v OFS='\t' '$4>=2 {{print}}' > {output}"
+else:
+    # merge all peaks to get union peak with at least
+    # two reps per condition per peak
+    rule make_high_conf_peaks:
+        input:
+            get_peaks_by_mark_condition
+        output:
+            f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed"
+        conda:
+            "../envs/bedtools.yml"
+        singularity:
+            "docker://staphb/bedtools:2.30.0"
+        shell:
+            "cat {input} | sort -k1,1 -k2,2n | "
+            "bedtools merge | "
+            "bedtools intersect -a - -b {input} -c | "
+            "awk -v OFS='\t' '$4>=2 {{print}}' > {output}"
+
+
+# get consensus
+rule consensus:
+    input:
+        expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed", sample=sample_noigg) if os.path.isfile(blacklist_file) else expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed", sample=sample_noigg)
+    output:
+        consensus_counts = f"{DATA_DIR}/counts/{{mark}}_counts.tsv",
+        consensus_bed = f"{DATA_DIR}/counts/{{mark}}_consensus.bed"
+    params:
+        blacklist_flag = "-b" if os.path.isfile(blacklist_file) else ""
+    conda:
+        "../envs/bedtools.yml"
+    singularity:
+        "docker://staphb/bedtools:2.30.0"
+    shell:
+        f"OUTPUT_BASE_DIR=\"{DATA_DIR}\" bash src/consensus_peaks.sh -m {{wildcards.mark}} -n {{config[N_INTERSECTS]}} -o {{output.consensus_counts}} {{params.blacklist_flag}}"
+
+rule frip:
+    input:
+        rules.callpeaks.output, f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam"
+    output:
+        f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.png", f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv"
+    conda:
+        "../envs/dtools.yml"
+    singularity:
+        os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "dtools.sif")
+    log:
+        f"{DATA_DIR}/logs/plotEnrichment_{{sample}}.log"
+    shell:
+        "bash src/skip_frip.sh {input[0]} {input[1]} {output[0]} {output[1]} {log}"

@@ -1,0 +1,126 @@
+# CutAndQC performs initial QC on CutAndTag projects
+import glob
+import os 
+from pathlib import Path,PurePath,PurePosixPath
+from collections import defaultdict
+import pandas as pd
+from snakemake.utils import validate, min_version
+import plotly as plt
+import plotly.graph_objects as go
+
+##### set minimum snakemake version #####
+min_version("5.32.0")
+
+include: "src/common.py"
+
+# validate inputs
+
+configfile: "config.yml"
+validate(config, schema="../schemas/config.schema.yml")
+
+SAMPLE_SHEET = config["config_file"]
+st = pd.read_table(SAMPLE_SHEET).set_index('sample',drop=False)
+validate(st, schema="../schemas/samples.schema.yml")
+
+deseq2_md = pd.read_table("config/deseq2_metadata.csv", sep = ",").set_index('sample', drop = False)
+validate(deseq2_md, schema="../schemas/deseq2.schema.yml")
+
+diffbind_md = pd.read_table("config/diffbind_config.csv", sep = ",").set_index('SampleID', drop = False)
+validate(diffbind_md, schema="../schemas/diffbind.schema.yml")
+
+# parse config files
+
+samps = get_samples()
+reads= get_reads()
+marks=get_marks()
+mark_conditions=get_mark_conditions()
+
+# base output directory from config
+DATA_DIR = config["output_base_dir"].rstrip("/")
+
+if not os.path.exists(os.path.join(DATA_DIR, "fastqc")):
+    os.makedirs(os.path.join(DATA_DIR, "fastqc"))
+
+marks = get_marks()
+sample_noigg = [k for k in samps if config["IGG"] not in k]
+marks_noigg = [m for m in marks if config["IGG"] not in m]
+
+blacklist_file = config["BLACKLIST"].strip()
+
+include: "rules/align.smk"
+include: "rules/diff.smk"
+include: "rules/peaks.smk"
+include: "rules/postalign.smk"
+include: "rules/preprocess.smk"
+include: "rules/qc.smk"
+localrules: frip_plot, fraglength_plot
+
+#singularity: "library://gartician/miniconda-mamba/4.12.0:sha256.7302640e37d37af02dd48c812ddf9c540a7dfdbfc6420468923943651f795591"
+# singularity: "/home/groups/MaxsonLab/software/singularity-containers/4.12.0_sha256.7302640e37d37af02dd48c812ddf9c540a7dfdbfc6420468923943651f795591.sif"
+
+rule all:
+    input:
+        expand(f"{DATA_DIR}/fastqc/{{read}}_fastqc.{{ext}}", read=reads, ext = ["html", "zip"]),
+        expand(f"{DATA_DIR}/fastq_screen/{{read}}_screen.txt", read=reads),
+        expand(f"{DATA_DIR}/counts/{{mark}}_counts.tsv", mark=marks_noigg),
+        expand(f"{DATA_DIR}/counts/{{mark}}_consensus.bed", mark=marks_noigg),
+        expand([f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam",
+                f"{DATA_DIR}/markd/{{sample}}.sorted.markd.fraglen.tsv",
+                f"{DATA_DIR}/tracks/{{sample}}.bw",
+                f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt",
+                ], sample=samps),
+        expand([f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed", 
+        f"{DATA_DIR}/dtools/fingerprint_{{sample}}.tsv",
+        f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv",
+        ], sample=sample_noigg),
+
+        expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed", sample=samps) if os.path.isfile(blacklist_file) else [],
+
+        f"{DATA_DIR}/multiqc/multiqc_report.html",
+        f"{DATA_DIR}/multiqc/multiqc_data/multiqc_data.json",
+
+        expand([f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-rld-pca.pdf",
+        f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-vsd-pca.pdf",
+        f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-normcounts.csv",
+        f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-lognormcounts.csv",
+        f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-rld.pdf",
+        f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-vsd.pdf",
+        f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-vsd-dist.pdf",
+        f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-rld-dist.pdf",
+        f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-dds.rds",
+        f"{DATA_DIR}/homer/{{mark}}.done"], mark=marks_noigg),
+
+        expand(f"{DATA_DIR}/diffbind/{{mark}}/{{mark}}_DBAobj.rds", mark=marks_noigg),
+        expand(f"{DATA_DIR}/diffbind/{{mark}}/{{mark}}_pca.pdf", mark=marks_noigg),
+        # quality control plots
+        f"{DATA_DIR}/markd/fraglen.html",
+        f"{DATA_DIR}/plotEnrichment/frip.html",
+        expand(f"{DATA_DIR}/mergebw/{{mark_condition}}.bw", mark_condition=mark_conditions),
+        expand(f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed", mark_condition=mark_conditions),
+        f"{DATA_DIR}/custom_report/custom_report.html"
+
+
+
+if config["USE_SINGULARITY"]:
+    rule homer:
+        input:
+            f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-dds.rds"
+        output:
+            f"{DATA_DIR}/homer/{{mark}}.done"
+        singularity:
+            os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "homer.sif")
+        shell:
+            f"OUTPUT_BASE_DIR=\"{DATA_DIR}\" bash src/homer.sh -m {{wildcards.mark}} -s 0 -p 8 -g {{config[FASTA]}}"
+else:
+    rule homer:
+        input:
+            f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-dds.rds"
+        output:
+            f"{DATA_DIR}/homer/{{mark}}.done"
+        conda:
+            "envs/homer.yml"
+        shell:
+            f"OUTPUT_BASE_DIR=\"{DATA_DIR}\" bash src/homer.sh -m {{wildcards.mark}} -s 1 -p 8 -g {{config[FASTA]}}"
+# this rule submits HOMER runs to SLURM if -s = 1. A run is each unique contrast
+# if running pipeline via containers, then don't allow homer script to spawn sbatch jobs because slurm can't be accessed inside container
+

@@ -1,0 +1,11 @@
+name: cuttag-sm
+channels:
+    - conda-forge
+    - bioconda
+    - nodefaults
+dependencies:
+    - python>=3.8,<3.11
+    - snakemake
+    - pandas
+    - plotly
+

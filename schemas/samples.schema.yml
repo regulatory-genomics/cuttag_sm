@@ -1,0 +1,37 @@
+$schema: "http://json-schema.org/draft-06/schema#"
+
+description: sample sheeet schema
+properties:
+  sample:
+    type: string
+    description: unique sample name / identifier
+    #pattern: "(.+)_([0-9]+)_(.+)"
+  R1:
+    type: string
+    description: path to the the read1 fastq file
+    #pattern: "data\/raw\/.+R1.fastq.gz"
+  R2:
+    type: string
+    description: path to the the read2 fastq file
+    #pattern: "data\/raw\/.+R2.fastq.gz"
+  mark:
+    type: string
+    description: epigenetic mark used
+  condition:
+    type: string
+    description: sample condition that will be compared during differential expression analysis (e.g. a treatment, a tissue time, a disease)
+  igg:
+    type: string
+    description: igg file to use, initially set to same as filename, must change to represent igg sample
+  gopeaks:
+    type: string
+    description: string of extra GoPeaks parameters to use. input and output are defined by default.
+
+required:
+  - sample
+  - R1
+  - R2
+  - mark
+  - condition
+  - igg
+  - gopeaks

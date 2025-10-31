@@ -1,0 +1,3 @@
+sample	R1	R2	mark	condition	igg	gopeaks
+K10-1_test	/data2/litian/macrophage/data/CUT_test/K10-1_test_R1.fastq.gz	/data2/litian/macrophage/data/CUT_test/K10-1_test_R2.fastq.gz	test_ab	con	K10-1_test	-
+K10-2_test	/data2/litian/macrophage/data/CUT_test/K10-2_test_R1.fastq.gz	/data2/litian/macrophage/data/CUT_test/K10-2_test_R2.fastq.gz	test_ab	treat	K10-2_test	-

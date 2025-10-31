@@ -1,0 +1,71 @@
+# Container options -----------------------------------------------------------
+# option to use Singularity for running the pipeline via containerized environments (True or False)
+USE_SINGULARITY: True
+
+# path to folder containing Singularity container image files (.sif files) for pipeline
+SINGULARITY_IMAGE_FOLDER: "/home/groups/MaxsonLab/software/singularity-containers/pipeline_containers/cuttag/image_files"
+
+# Quality Control -------------------------------------------------------------
+FASTQ_SCREEN: src/fastq_screen.conf
+
+# Adapter Trimming ------------------------------------------------------------
+# option to trim adapters from raw reads to improve alignment rate (True or False)
+TRIM_ADAPTERS: True
+
+# FASTA file containing additional list of sequences to trim from reads
+# ignored if TRIM_ADAPTERS is False
+ADAPTER_FASTA: genes/adapter_seqs.fa
+
+
+# Alignment + preprocessing -------------------------------------------------------------------
+GENOME: /data2/litian/database/bowtie2/resources/atacseq_pipeline/hg38/indices_for_Bowtie2
+# /home/groups/MaxsonLab/indices/GRch38/bowtie2/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bowtie_index
+# /home/groups/MaxsonLab/indices/mm10/bowtie2/mm10
+
+FASTA: /data2/litian/database/genome/GRCh38.primary_assembly.genome.fa.gz
+#-----If running Homer (pipeline default), use one of the following homer_preparsed FASTA symlinks:
+# /home/groups/MaxsonLab/indices/homer_preparsed/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta
+# /home/groups/MaxsonLab/indices/homer_preparsed/mm10.fa
+#-----If not running Homer, use one of the following FASTA files:
+# /home/groups/MaxsonLab/indices/GRch38/bowtie2/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta
+# /home/groups/MaxsonLab/indices/mm10/bowtie2/mm10.fa
+
+GENES: genes/hg38_refseq_genes.bed
+# genes/mm10_refseq_genes.bed
+# genes/hg38_refseq_genes.bed
+
+# Peak Calling ----------------------------------------------------------------
+
+#should we use IGG for peak calling or not? (True or False)
+USEIGG: True
+
+#  how is IgG spelled in the filename, eg: "IgG"  for file "G1_IgG_Kasumi_S25_R2.fastq.gz"
+IGG: IgG
+
+CSIZES: genes/hg38.chrom.sizes
+# src/mm10.chrom.sizes
+# src/hg38.chrom.sizes
+
+# Peak Processing
+N_INTERSECTS: 2 # the number of times a peak must appear across biological replicates (within one condition) to be considered a consensus peak
+
+# (optional) path to tab-delimited file of blacklisted genomic regions to filter out
+# if you don't want to remove regions, set this to "" (include quotations)
+BLACKLIST: ""
+# ----- CUT&RUN-specific blacklists from Nordin, A., Zambanini, G., Pagella, P. et al. 2023:
+# blacklists/hg38_cutrun_blacklist_Nordin2023.txt
+# blacklists/mm10_cutrun_blacklist_Nordin2023.txt
+# ----- ENCODE blacklists from Amemiya, H.M., Kundaje, A. & Boyle, A.P 2019:
+# blacklists/ENCODE_hg38-blacklist.v2.bed
+# blacklists/ENCODE_mm10-blacklist.v2.bed
+
+
+# Diffbind settings ----------------------------------------------------------------
+
+# filter for Diffbind differential analyis results with pval less than <padj_cutoff>
+padj_cutoff: 0.05
+
+
+output_base_dir: /data2/litian/macrophage/process/20251031_cuttag_test/
+
+config_file : /data2/litian/macrophage/script/cuttag_pipeline/cutTag-pipeline/config/samplesheet_test.tsv
