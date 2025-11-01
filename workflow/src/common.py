@@ -123,7 +123,8 @@ def get_igg(wildcards):
     the sample is IgG then no control file is used.
     """ 
     if config['USEIGG']:
-        igg=st.loc[wildcards.sample]['igg']
+        row = st[st['sample'] == wildcards.sample]
+        igg = str(row['igg'].iloc[0]) if not row.empty else ''
         iggbam=f'{get_data_dir()}/markd/{igg}.sorted.markd.bam'
         isigg=config['IGG'] in wildcards.sample
         if not isigg:
@@ -138,28 +139,20 @@ def get_callpeaks(wildcards):
     Returns the callpeaks input files
     """
     bam=f"{get_data_dir()}/markd/{wildcards.sample}.sorted.markd.bam"
-    bai=f"{get_data_dir()}/markd/{wildcards.sample}.sorted.markd.bam.bai"
-    if config["USEIGG"]:
-        igg=st.loc[wildcards.sample]['igg']
-        iggbam=f'{get_data_dir()}/markd/{igg}.sorted.markd.bam'
-        iggbam=f'{get_data_dir()}/markd/{igg}.sorted.markd.bam.bai'
-        isigg=config['IGG'] in wildcards.sample
-        if not isigg:
-            return [bam,bai,iggbam]
-        else:
-            return [bam,bai]
-    else:
-        return [bam,bai]
+    # Only the BAM is needed by gopeaks; index will be created by previous rule
+    return [bam]
 
 def callpeaks_params(wildcards):
     """
     Returns callpeaks parameters specified by the user in the samplesheet
     """
-    params = st.loc[wildcards.sample]['gopeaks']
-    if params == "-":
+    row = st[st['sample'] == wildcards.sample]
+    if row.empty or 'gopeaks' not in row.columns:
         return ""
-    else:
-        return params
+    params = str(row['gopeaks'].iloc[0])
+    if params == "-" or params.lower() == "nan":
+        return ""
+    return params
 
 def defect_mode(wildcards, attempt):
     if attempt == 1:
