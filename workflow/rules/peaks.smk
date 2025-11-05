@@ -18,6 +18,48 @@ rule callpeaks:
     shell:
         f"gopeaks -b {{input[0]}} {{params.igg}} -o {DATA_DIR}/callpeaks/{{wildcards.sample}} {{params.params}} > {{log}} 2>&1"
 
+rule callpeaks_macs2_broad:
+    input:
+        treatment=lambda wc: get_callpeaks(wc)[0]
+    output:
+        f"{DATA_DIR}/callpeaks/macs2_broad_{{sample}}_peaks.xls",
+        f"{DATA_DIR}/callpeaks/macs2_broad_{{sample}}_peaks.broadPeak",
+        f"{DATA_DIR}/callpeaks/macs2_broad_{{sample}}_peaks.gappedPeak"
+    log:
+        f"{DATA_DIR}/callpeaks/{{sample}}_macs2peaks_broad.json"
+    params:
+        extra=(lambda wc: (
+            f"-f BAMPE -g " + (
+                "hs" if "hg" in str(config.get("GENES", "")).lower() else (
+                    "mm" if "mm" in str(config.get("GENES", "")).lower() else "hs"
+                )
+            ) + " --nomodel --keep-dup all --broad"
+        ))
+    threads: 4
+    wrapper:
+        "v2.9.1/bio/macs2/callpeak"
+
+rule callpeaks_macs2_narrow:
+    input:
+        treatment=lambda wc: get_callpeaks(wc)[0]
+    output:
+        f"{DATA_DIR}/callpeaks/macs2_narrow_{{sample}}_peaks.xls",
+        f"{DATA_DIR}/callpeaks/macs2_narrow_{{sample}}_peaks.narrowPeak",
+        f"{DATA_DIR}/callpeaks/macs2_narrow_{{sample}}_summits.bed"
+    log:
+        f"{DATA_DIR}/callpeaks/{{sample}}_macs2peaks_narrow.json"
+    params:
+        extra=(lambda wc: (
+            f"-f BAMPE -g " + (
+                "hs" if "hg" in str(config.get("GENES", "")).lower() else (
+                    "mm" if "mm" in str(config.get("GENES", "")).lower() else "hs"
+                )
+            ) + " --nomodel --keep-dup all"
+        ))
+    threads: 4
+    wrapper:
+        "v2.9.1/bio/macs2/callpeak"
+
 
 if os.path.isfile(blacklist_file):
     rule remove_blacklist:

@@ -151,8 +151,68 @@ def callpeaks_params(wildcards):
         return ""
     params = str(row['gopeaks'].iloc[0])
     if params == "-" or params.lower() == "nan":
-        return ""
+        params = ""
+    # append broad flag for me3 marks
+    try:
+        mark = str(row['mark'].iloc[0]).lower()
+        if 'me3' in mark or mark in {"h3k4me3", "h3k27me3"}:
+            params = (params + " --broad").strip()
+    except Exception:
+        pass
     return params
+
+def macs2_extra_params(wildcards):
+    row = st[st['sample'] == wildcards.sample]
+    mark = str(row['mark'].iloc[0]).lower() if not row.empty else ""
+    base = "--nomodel --keep-dup all --format BAMPE"
+    if 'me3' in mark or mark in {"h3k4me3", "h3k27me3"}:
+        return base + " --broad"
+    return base
+
+def get_macs2_outputs(data_dir, igg_name="IgG"):
+    """
+    Get MACS2 output files based on marker type.
+    Returns broad peak outputs for me3 markers, narrow peak outputs for others.
+    Excludes IgG control samples.
+    """
+    outputs = []
+    for sample in st['sample'].unique():
+        # Skip IgG samples
+        if igg_name.lower() in str(sample).lower():
+            continue
+        
+        row = st[st['sample'] == sample]
+        if row.empty:
+            continue
+        mark = str(row['mark'].iloc[0]).lower()
+        
+        # Skip if mark is IgG
+        if igg_name.lower() in mark:
+            continue
+            
+        # Check if it's a broad peak marker (me3)
+        if 'me3' in mark or mark in {"h3k4me3", "h3k27me3"}:
+            # Broad peak outputs
+            outputs.extend([
+                f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.xls",
+                f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.broadPeak",
+                f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.gappedPeak"
+            ])
+        else:
+            # Narrow peak outputs
+            outputs.extend([
+                f"{data_dir}/callpeaks/macs2_narrow_{sample}_peaks.xls",
+                f"{data_dir}/callpeaks/macs2_narrow_{sample}_peaks.narrowPeak",
+                f"{data_dir}/callpeaks/macs2_narrow_{sample}_summits.bed"
+            ])
+    return outputs
+
+def is_broad_mark(wildcards):
+    row = st[st['sample'] == wildcards.sample]
+    if row.empty:
+        return False
+    mk = str(row['mark'].iloc[0]).lower()
+    return ('me3' in mk) or (mk in {"h3k4me3", "h3k27me3"})
 
 def defect_mode(wildcards, attempt):
     if attempt == 1:

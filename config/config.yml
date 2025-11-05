@@ -37,7 +37,7 @@ GENES: genes/hg38_refseq_genes.bed
 # Peak Calling ----------------------------------------------------------------
 
 #should we use IGG for peak calling or not? (True or False)
-USEIGG: True
+USEIGG: False
 
 #  how is IgG spelled in the filename, eg: "IgG"  for file "G1_IgG_Kasumi_S25_R2.fastq.gz"
 IGG: IgG
@@ -69,3 +69,5 @@ padj_cutoff: 0.05
 output_base_dir: /data2/litian/macrophage/process/20251031_cuttag_run1/
 
 config_file : /data2/litian/macrophage/data/metadata/CUT_prepare.tsv
+#output_base_dir: /data2/litian/macrophage/process/20251031_cuttag_test/
+#config_file : /data2/litian/macrophage/script/cuttag_pipeline/cutTag-pipeline/config/samplesheet_test.tsv
