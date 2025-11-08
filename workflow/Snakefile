@@ -75,8 +75,8 @@ rule all:
                 f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt",
                 ], sample=samps),
         # Peak calling outputs (gopeaks)
-        expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed", sample=sample_noigg),
-        # MACS2 outputs (broad for me3 markers, narrow for others)
+        #expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed", sample=sample_noigg),
+        # MACS2 outputs (broad for H3K27me3, narrow for others)
         get_macs2_outputs(DATA_DIR, config["IGG"]),
         # FRiP & fingerprint
         expand(f"{DATA_DIR}/dtools/fingerprint_{{sample}}.tsv", sample=sample_noigg),

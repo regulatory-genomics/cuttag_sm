@@ -33,7 +33,7 @@ rule callpeaks_macs2_broad:
                 "hs" if "hg" in str(config.get("GENES", "")).lower() else (
                     "mm" if "mm" in str(config.get("GENES", "")).lower() else "hs"
                 )
-            ) + " --nomodel --keep-dup all --broad"
+            ) + " --nomodel --keep-dup all --broad --broad-cutoff 0.1 -q 0.01"
         ))
     threads: 4
     wrapper:
@@ -54,7 +54,7 @@ rule callpeaks_macs2_narrow:
                 "hs" if "hg" in str(config.get("GENES", "")).lower() else (
                     "mm" if "mm" in str(config.get("GENES", "")).lower() else "hs"
                 )
-            ) + " --nomodel --keep-dup all"
+            ) + " --nomodel --keep-dup all -q 0.01"
         ))
     threads: 4
     wrapper:

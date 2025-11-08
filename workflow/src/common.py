@@ -191,7 +191,7 @@ def get_macs2_outputs(data_dir, igg_name="IgG"):
             continue
             
         # Check if it's a broad peak marker (me3)
-        if 'me3' in mark or mark in {"h3k4me3", "h3k27me3"}:
+        if mark in {"h3k27me3"}:
             # Broad peak outputs
             outputs.extend([
                 f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.xls",
