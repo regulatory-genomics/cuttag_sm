@@ -219,3 +219,32 @@ def defect_mode(wildcards, attempt):
         return ""
     elif attempt > 1:
         return "-D"
+
+def get_macs2_peak_files(data_dir, igg_name="IgG"):
+    """
+    Get all MACS2 peak files (.broadPeak and .narrowPeak) for counting.
+    Excludes IgG control samples.
+    """
+    peak_files = []
+    for sample in st['sample'].unique():
+        # Skip IgG samples
+        if igg_name.lower() in str(sample).lower():
+            continue
+        
+        row = st[st['sample'] == sample]
+        if row.empty:
+            continue
+        mark = str(row['mark'].iloc[0]).lower()
+        
+        # Skip if mark is IgG
+        if igg_name.lower() in mark:
+            continue
+            
+        # Check if it's a broad peak marker (me3)
+        if mark in {"h3k27me3"}:
+            # Broad peak file
+            peak_files.append(f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.broadPeak")
+        else:
+            # Narrow peak file
+            peak_files.append(f"{data_dir}/callpeaks/macs2_narrow_{sample}_peaks.narrowPeak")
+    return peak_files

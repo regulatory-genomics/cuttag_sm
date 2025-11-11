@@ -1,4 +1,6 @@
 # Other MultiQC config stuff here
+disable_modules:
+  - gopeaks
 custom_data:
     peaks:
         file_format: 'txt'

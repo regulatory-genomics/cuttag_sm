@@ -36,6 +36,3 @@ required:
   - R1
   - R2
   - mark
-  - condition
-  - igg
-  - gopeaks

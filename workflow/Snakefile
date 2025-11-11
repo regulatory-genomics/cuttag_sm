@@ -39,7 +39,7 @@ st = st.set_index('sample', drop=False)
 samps = get_samples()
 reads = get_reads()
 marks = get_marks()
-mark_conditions = get_mark_conditions()
+#mark_conditions = get_mark_conditions()
 
 # base output directory from config
 DATA_DIR = config["output_base_dir"].rstrip("/")
@@ -65,10 +65,10 @@ localrules: frip_plot, fraglength_plot
 
 rule all:
     input:
-        expand(f"{DATA_DIR}/fastqc/{{read}}_fastqc.{{ext}}", read=reads, ext = ["html", "zip"]),
-        expand(f"{DATA_DIR}/fastq_screen/{{read}}_screen.txt", read=reads),
-        expand(f"{DATA_DIR}/counts/{{mark}}_counts.tsv", mark=marks_noigg),
-        expand(f"{DATA_DIR}/counts/{{mark}}_consensus.bed", mark=marks_noigg),
+        #expand(f"{DATA_DIR}/fastqc/{{read}}_fastqc.{{ext}}", read=reads, ext = ["html", "zip"]),
+        #expand(f"{DATA_DIR}/fastq_screen/{{read}}_screen.txt", read=reads),
+        #expand(f"{DATA_DIR}/counts/{{mark}}_counts.tsv", mark=marks_noigg),
+        #expand(f"{DATA_DIR}/counts/{{mark}}_consensus.bed", mark=marks_noigg),
         expand([f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam",
                 f"{DATA_DIR}/markd/{{sample}}.sorted.markd.fraglen.tsv",
                 f"{DATA_DIR}/tracks/{{sample}}.bw",
@@ -82,7 +82,7 @@ rule all:
         expand(f"{DATA_DIR}/dtools/fingerprint_{{sample}}.tsv", sample=sample_noigg),
         expand(f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv", sample=sample_noigg),
 
-        expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed", sample=samps) if os.path.isfile(blacklist_file) else [],
+        #expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed", sample=samps) if os.path.isfile(blacklist_file) else [],
 
         f"{DATA_DIR}/multiqc/multiqc_report.html",
         f"{DATA_DIR}/multiqc/multiqc_data/multiqc_data.json",
@@ -103,9 +103,13 @@ rule all:
         # quality control plots
         f"{DATA_DIR}/markd/fraglen.html",
         f"{DATA_DIR}/plotEnrichment/frip.html",
-        expand(f"{DATA_DIR}/mergebw/{{mark_condition}}.bw", mark_condition=mark_conditions),
-        expand(f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed", mark_condition=mark_conditions),
-        f"{DATA_DIR}/custom_report/custom_report.html"
+        f"{DATA_DIR}/multiqc/peakcount.txt",
+        # Genomic coverage report
+        f"{DATA_DIR}/coverage/coverage_report.tsv",
+        
+        #expand(f"{DATA_DIR}/mergebw/{{mark_condition}}.bw", mark_condition=mark_conditions),
+        #expand(f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed", mark_condition=mark_conditions),
+        #f"{DATA_DIR}/custom_report/custom_report.html"
 
 
 

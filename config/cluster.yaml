@@ -7,12 +7,6 @@ __default__:
     job-name: "{rule}"
     error: "jobs/{rule}/{rule}_%j.err"
     out: "jobs/{rule}/{rule}_%j.out"
-fastqc:
-    mem: 4G
-    cpus-per-task: 1
-fastq_screen:
-    mem: 6G
-    cpus-per-task: 2
 bowtie2:
     cpus-per-task: 8
 index: 
@@ -21,9 +15,6 @@ callpeaks:
     cpus-per-task: 1
     mem: 55G
 frip:
-    cpus-per-task: 1
-    mem: 4G
-consensus:
     cpus-per-task: 1
     mem: 4G
 tracks:
@@ -42,8 +33,5 @@ remove_blacklist:
     cpus-per-task: 1
     mem: 4G
 multiqc:
-    cpus-per-task: 1
-    mem: 4G
-custom_report:
     cpus-per-task: 1
     mem: 4G

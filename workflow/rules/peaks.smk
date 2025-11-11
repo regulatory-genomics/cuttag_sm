@@ -12,6 +12,7 @@ rule callpeaks:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "gopeaks.sif")
     log:
         f"{DATA_DIR}/callpeaks/{{sample}}_gopeaks.json"
+    threads: 4
     params:
         igg = get_igg,
         params = callpeaks_params
@@ -136,7 +137,12 @@ rule consensus:
 
 rule frip:
     input:
-        rules.callpeaks.output, f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam"
+        peaks=lambda wc: (
+            f"{DATA_DIR}/callpeaks/macs2_broad_{wc.sample}_peaks.broadPeak"
+            if is_broad_mark(wc)
+            else f"{DATA_DIR}/callpeaks/macs2_narrow_{wc.sample}_peaks.narrowPeak"
+        ),
+        bam=f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam"
     output:
         f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.png", f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv"
     conda:
@@ -146,4 +152,58 @@ rule frip:
     log:
         f"{DATA_DIR}/logs/plotEnrichment_{{sample}}.log"
     shell:
-        "bash workflow/src/skip_frip.sh {input[0]} {input[1]} {output[0]} {output[1]} {log}"
+        "bash workflow/src/skip_frip.sh {input.peaks} {input.bam} {output[0]} {output[1]} {log}"
+
+rule genomic_coverage:
+    input:
+        peaks=lambda wc: (
+            f"{DATA_DIR}/callpeaks/macs2_broad_{wc.sample}_peaks.broadPeak"
+            if is_broad_mark(wc)
+            else f"{DATA_DIR}/callpeaks/macs2_narrow_{wc.sample}_peaks.narrowPeak"
+        ),
+        chrom_sizes=config["CSIZES"]
+    output:
+        f"{DATA_DIR}/coverage/{{sample}}_coverage.tsv"
+    conda:
+        "../envs/bedtools.yml"
+    singularity:
+        "docker://staphb/bedtools:2.30.0"
+    log:
+        f"{DATA_DIR}/logs/coverage_{{sample}}.log"
+    shell:
+        """
+        set -euo pipefail
+        exec >{log} 2>&1
+        # Calculate total genome size
+        TOTAL_GENOME_SIZE=$(awk -F'\t' '{{sum += $2}} END {{print sum}}' {input.chrom_sizes})
+        
+        # Calculate covered bases (merge overlapping intervals first)
+        COVERED_BASES=$(sort -k1,1 -k2,2n {input.peaks} | \
+                        bedtools merge -i stdin | \
+                        awk -F'\t' '{{sum += $3 - $2}} END {{print sum}}')
+        
+        # Calculate percentage coverage
+        COVERAGE_PERCENT=$(echo "scale=6; ($COVERED_BASES / $TOTAL_GENOME_SIZE) * 100" | bc)
+        
+        # Write output with header
+        echo -e "Sample\tCoverage_Percent\tCovered_Bases\tTotal_Genome_Size" > {output}
+        echo -e "{wildcards.sample}\t$COVERAGE_PERCENT\t$COVERED_BASES\t$TOTAL_GENOME_SIZE" >> {output}
+        """
+
+rule coverage_report:
+    input:
+        expand(f"{DATA_DIR}/coverage/{{sample}}_coverage.tsv", sample=sample_noigg)
+    output:
+        f"{DATA_DIR}/coverage/coverage_report.tsv"
+    log:
+        f"{DATA_DIR}/logs/coverage_report.log"
+    shell:
+        """
+        set -euo pipefail
+        exec >{log} 2>&1
+        # Combine all individual coverage files into one report
+        echo -e "Sample\tCoverage_Percent\tCovered_Bases\tTotal_Genome_Size" > {output}
+        for file in {input}; do
+            tail -n +2 "$file" >> {output}
+        done
+        """

@@ -34,6 +34,7 @@ rule fraglength:
         f"{DATA_DIR}/markd/{{sample}}.sorted.markd.fraglen.tsv"
     conda:
         "../envs/align.yml"
+    threads: 1
     singularity:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "align.sif")
     shell:
@@ -45,6 +46,7 @@ rule fraglength_plot:
     output:
         f"{DATA_DIR}/markd/fraglen.html"
     container: None
+    threads: 1
     run:
         pd.options.plotting.backend = "plotly"
         dfs = []

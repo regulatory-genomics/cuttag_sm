@@ -59,8 +59,8 @@ rule preseq_lcextrap:
 
 rule multiqc:
     input:
-        get_fastqc_outputs(),
-        get_fastq_screen_outputs(),
+        #get_fastqc_outputs(),
+        #get_fastq_screen_outputs(),
         expand(f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv", sample=sample_noigg),
         expand(f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt", sample=samps)
     output:
@@ -76,9 +76,9 @@ rule multiqc:
         # comment out the "export ..." line if not running pipeline through Singularity
         f"export LC_ALL=C.UTF-8; export LANG=C.UTF-8; "
         f"multiqc "
-        f"{DATA_DIR}/fastqc "
-        f"{DATA_DIR}/fastq_screen "
-        f"{DATA_DIR}/plotEnrichment "
+        #f"{DATA_DIR}/fastqc "
+        #f"{DATA_DIR}/fastq_screen "
+        #f"{DATA_DIR}/plotEnrichment "
         f"{DATA_DIR}/callpeaks "
         f"{DATA_DIR}/preseq "
         f"{DATA_DIR}/logs "
@@ -90,33 +90,20 @@ rule multiqc:
         f"--ignore {DATA_DIR}/counts "
         f"> {{log}} 2>&1"
 
-# export different locales for singularity workaround: https://click.palletsprojects.com/en/8.1.x/unicode-support/
 
-
-rule custom_report:
+rule count_peaks:
     input:
-        multiqc_json = f"{DATA_DIR}/multiqc/multiqc_data/multiqc_data.json",
-        high_conf_peaks = expand(f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed", mark_condition=mark_conditions)
+        get_macs2_peak_files(DATA_DIR, config["IGG"])
     output:
-        f"{DATA_DIR}/custom_report/custom_report.html"
-    params:
-        rmd = "workflow/src/custom_report.Rmd",
-        output_dir = f"{DATA_DIR}/custom_report",
-        callpeaks_folder = f"{DATA_DIR}/callpeaks",
-        high_conf_peaks_folder = f"{DATA_DIR}/highConf",
-        blacklist = blacklist_file,
-        samplesheet = config["config_file"]
-    conda:
-        "../envs/knit_rmd.yml"
-    singularity:
-        os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "knit_rmd.sif")
+        f"{DATA_DIR}/multiqc/peakcount.txt"
     shell:
         """
-        Rscript -e 'rmarkdown::render(input=here::here("{params.rmd}"), output_dir=here::here("{params.output_dir}"), envir = new.env(), params=list(
-        multiqc_json=here::here("{input.multiqc_json}"),
-        callpeaks_folder=here::here("{params.callpeaks_folder}"),
-        high_conf_peaks_folder=here::here("{params.high_conf_peaks_folder}"),
-        blacklist_file=here::here("{params.blacklist}"),
-        samplesheet=here::here("{params.samplesheet}")
-        ))'
+        if [ -z "{input}" ]; then
+            : > {output}
+        else
+            wc -l {input} | \
+            sed '$d' | \
+            sed -E 's|.*/macs2_broad_||; s|.*/macs2_narrow_||; s/_peaks.broadPeak//; s/_peaks.narrowPeak//' | \
+            awk '{{print $2, $1}}' > {output}
+        fi
         """

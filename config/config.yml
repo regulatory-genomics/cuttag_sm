@@ -17,6 +17,9 @@ TRIM_ADAPTERS: True
 ADAPTER_FASTA: genes/adapter_seqs.fa
 
 
+# Aligner---------------------------
+aligner: bowtie2
+
 # Alignment + preprocessing -------------------------------------------------------------------
 GENOME: /data2/litian/database/bowtie2/resources/atacseq_pipeline/hg38/indices_for_Bowtie2/hg38
 # /home/groups/MaxsonLab/indices/GRch38/bowtie2/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna.bowtie_index
@@ -66,8 +69,7 @@ BLACKLIST: ""
 padj_cutoff: 0.05
 
 
-output_base_dir: /data2/litian/macrophage/process/20251031_cuttag_run1/
-
-config_file : /data2/litian/macrophage/data/metadata/CUT_prepare.tsv
-#output_base_dir: /data2/litian/macrophage/process/20251031_cuttag_test/
-#config_file : /data2/litian/macrophage/script/cuttag_pipeline/cutTag-pipeline/config/samplesheet_test.tsv
+#output_base_dir: /data2/litian/macrophage/process/20251111_cuttag_run2/
+#config_file : /data2/litian/macrophage/data/metadata/20251111_CUT_prepare.tsv
+output_base_dir: /data2/litian/macrophage/process/20251111_cuttag_test/
+config_file : /data2/litian/macrophage/script/cuttag_pipeline/cutTag-pipeline/config/samplesheet_test.tsv
