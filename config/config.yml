@@ -69,7 +69,7 @@ BLACKLIST: ""
 padj_cutoff: 0.05
 
 
-#output_base_dir: /data2/litian/macrophage/process/20251111_cuttag_run2/
-#config_file : /data2/litian/macrophage/data/metadata/20251111_CUT_prepare.tsv
-output_base_dir: /data2/litian/macrophage/process/20251111_cuttag_test/
-config_file : /data2/litian/macrophage/script/cuttag_pipeline/cutTag-pipeline/config/samplesheet_test.tsv
+output_base_dir: /data2/litian/macrophage/process/20251111_cuttag_run2/
+config_file : /data2/litian/macrophage/data/metadata/20251111_CUT_prepare.tsv
+#output_base_dir: /data2/litian/macrophage/process/20251111_cuttag_test/
+#config_file : /data2/litian/macrophage/script/cuttag_pipeline/cutTag-pipeline/config/samplesheet_test.tsv
