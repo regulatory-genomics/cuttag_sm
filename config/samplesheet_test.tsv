@@ -1,4 +1,4 @@
-sample	run	R1	R2	mark
-K10-1_test	1	/data2/litian/macrophage/data/CUT_test/test1_R1.fastq.gz	/data2/litian/macrophage/data/CUT_test/test1_R2.fastq.gz	H3K27ac
-K10-2_test	1	/data2/litian/macrophage/data/CUT_test/test2_R1.fastq.gz	/data2/litian/macrophage/data/CUT_test/test2_R2.fastq.gz	H3K27ac
-K10-2_test	2	/data2/litian/macrophage/data/CUT_test/test1_R1.fastq.gz	/data2/litian/macrophage/data/CUT_test/test1_R2.fastq.gz	H3K27ac
+sample	run	mark	condition	igg	fastq_id	gopeaks
+K10-1_test	1	H3K27ac	K10	K10_IgG	test1	-
+K10-2_test	1	H3K27ac	K10	K10_IgG	test2	-
+K10-2_test	2	H3K27ac	K10	K10_IgG	test1	-

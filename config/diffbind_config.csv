@@ -1,3 +1,0 @@
-SampleID,Factor,Condition,Replicate,bamReads,Peaks,PeakCaller,PeakFormat
-K10-1_test,ab,con,1,/data2/litian/macrophage/process/20251031_cuttag_test/markd/test1.sorted.markd.bam,/data2/litian/macrophage/process/20251031_cuttag_test/counts/test1_consensus.bed,raw,bed
-K10-2_test,ab,treat,1,/data2/litian/macrophage/process/20251031_cuttag_test/markd/test2.sorted.markd.bam,/data2/litian/macrophage/process/20251031_cuttag_test/counts/test2_consensus.bed,raw,bed

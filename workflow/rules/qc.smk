@@ -78,7 +78,7 @@ rule multiqc:
         f"multiqc "
         #f"{DATA_DIR}/fastqc "
         #f"{DATA_DIR}/fastq_screen "
-        #f"{DATA_DIR}/plotEnrichment "
+        f"{DATA_DIR}/plotEnrichment "
         f"{DATA_DIR}/callpeaks "
         f"{DATA_DIR}/preseq "
         f"{DATA_DIR}/logs "

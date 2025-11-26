@@ -1,0 +1,13 @@
+pep_version: "2.1.0"
+
+project:
+  name: "20251111_cuttag_test"
+  sample_table: "../samplesheet_test.tsv"
+  raw_data: "/data2/litian/macrophage/data/CUT_test"
+
+sample_modifiers:
+  append:
+    R1: "{raw_data|data/raw}/{fastq_id}_R1.fastq.gz"
+    R2: "{raw_data|data/raw}/{fastq_id}_R2.fastq.gz"
+    run_label: "{sample}.{run}"
+

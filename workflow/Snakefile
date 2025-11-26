@@ -1,31 +1,200 @@
 # CutAndQC performs initial QC on CutAndTag projects
 import glob
-import os 
-from pathlib import Path,PurePath,PurePosixPath
+import os
+import sys
+from pathlib import Path, PurePath, PurePosixPath
 from collections import defaultdict
 import pandas as pd
+from peppy import Project
 from snakemake.utils import validate, min_version
 #import plotly as plt
 #import plotly.graph_objects as go
 
 ##### set minimum snakemake version #####
-min_version("5.32.0")
+min_version("8.20.1")
 
 include: "src/common.py"
 
-# validate inputs
 
-configfile: "config.yml"
+def _get_nested(mapping, *keys, default=None):
+    """
+    Safely retrieve nested config values.
+    """
+    node = mapping
+    for key in keys:
+        if not isinstance(node, dict):
+            return default
+        node = node.get(key)
+        if node is None:
+            return default
+    return node
+
+
+def _hydrate_config(cfg):
+    """
+    Populate legacy top-level keys from the new hierarchical config layout so
+    the existing rules continue to work without large refactors.
+    """
+    project = _get_nested(cfg, "project_info", default={})
+    samples = _get_nested(project, "samples", default={})
+    outputs = _get_nested(project, "outputs", default={})
+    refs = _get_nested(cfg, "reference", default={})
+    steps = _get_nested(cfg, "pipeline_steps", default={})
+    peaks = _get_nested(steps, "peaks", default={})
+    preprocessing = _get_nested(steps, "preprocessing", default={})
+    diffbind = _get_nested(steps, "diffbind", default={})
+    workflow_res = _get_nested(cfg, "workflow_resources", default={})
+    exec_cfg = _get_nested(workflow_res, "execution", default={})
+
+    cfg["config_file"] = samples.get("table", "")
+    cfg["pep_config_file"] = samples.get("pep_config", "")
+    cfg["pep_attributes"] = samples.get("pep_attributes", {})
+    cfg["output_base_dir"] = outputs.get("root", "")
+    cfg["output_structure"] = outputs.get("structure", {})
+
+    cfg["USEIGG"] = peaks.get("use_igg", False)
+    cfg["IGG"] = peaks.get("igg_token", "IgG")
+    cfg["N_INTERSECTS"] = peaks.get("n_intersects", 2)
+    cfg["TRIM_ADAPTERS"] = preprocessing.get("trim_adapters", False)
+    cfg["padj_cutoff"] = diffbind.get("padj_cutoff", 0.05)
+
+    cfg["USE_SINGULARITY"] = exec_cfg.get("use_singularity", False)
+    cfg["SINGULARITY_IMAGE_FOLDER"] = exec_cfg.get("singularity_image_folder", "")
+
+    cfg["GENOME"] = refs.get("genome_index", "")
+    cfg["FASTA"] = refs.get("genome_fasta", "")
+    cfg["GENES"] = refs.get("genes_bed", "")
+    cfg["CSIZES"] = refs.get("chrom_sizes", "")
+    cfg["FASTQ_SCREEN"] = refs.get("fastq_screen_config", "")
+    cfg["ADAPTER_FASTA"] = refs.get("adapter_fasta", "")
+    cfg["BLACKLIST"] = refs.get("blacklist", "") or ""
+
+
+configfile: "../config/config.yml"
+_hydrate_config(config)
 validate(config, schema="../schemas/config.schema.yml")
 
-SAMPLE_SHEET = config["config_file"]
-st = pd.read_table(SAMPLE_SHEET, sep='\t',index_col=False)
-validate(st, schema="../schemas/samples.schema.yml")
-if 'sample' in st.columns:
-    st['sample'] = st['sample'].astype(str)
-if 'run' in st.columns:
-    st['run'] = st['run'].astype(str)
-st = st.set_index('sample', drop=False)
+
+def _resolve_config_paths(node, paths_dict):
+    """
+    Recursively replace placeholders such as {raw_data} using values defined in
+    the PEP `paths` block.
+    """
+    if not paths_dict:
+        return node
+    if isinstance(node, dict):
+        for key, value in node.items():
+            node[key] = _resolve_config_paths(value, paths_dict)
+        return node
+    if isinstance(node, list):
+        return [_resolve_config_paths(item, paths_dict) for item in node]
+    if isinstance(node, str) and "{" in node and "}" in node:
+        resolved = node
+        for placeholder, replacement in paths_dict.items():
+            if replacement is None:
+                continue
+            resolved = resolved.replace(f"{{{placeholder}}}", str(replacement))
+        return resolved
+    return node
+
+
+def _explode_list_columns(df):
+    """
+    Expand list-valued columns that can be produced by PEP modifiers.
+    """
+    list_cols = [
+        col
+        for col in df.columns
+        if df[col].apply(lambda x: isinstance(x, (list, tuple))).any()
+    ]
+    if not list_cols:
+        return df
+    expanded = df.copy()
+    for col in list_cols:
+        expanded = expanded.explode(col, ignore_index=True)
+    return expanded
+
+
+def _ensure_sample_columns(df):
+    """
+    Normalize column names expected by downstream logic.
+    """
+    normalized = df.copy()
+    if "sample" not in normalized.columns:
+        if "sample_name" in normalized.columns:
+            normalized["sample"] = normalized["sample_name"].astype(str)
+        elif normalized.index.name:
+            normalized["sample"] = normalized.index.astype(str)
+        else:
+            raise ValueError(
+                "PEP sample table is missing a 'sample' or 'sample_name' column."
+            )
+    normalized["sample"] = normalized["sample"].astype(str)
+    if "run" not in normalized.columns:
+        normalized["run"] = 1
+    normalized["run"] = pd.to_numeric(normalized["run"], errors="raise").astype(int)
+    return normalized
+
+
+# Load PEP configuration
+pep_config_value = _get_nested(
+    config,
+    "project_info",
+    "samples",
+    "pep_config",
+    default=os.path.join("config", "pep", "project_config.yaml"),
+)
+pep_config_path = (
+    pep_config_value
+    if os.path.isabs(pep_config_value)
+    else os.path.join(workflow.basedir, pep_config_value)
+)
+pep_project = Project(pep_config_path)
+
+if "paths" in pep_project.config:
+    config.setdefault("paths", {}).update(pep_project.config["paths"])
+_resolve_config_paths(config, config.get("paths", {}))
+
+# Build sample annotation table from the PEP project
+annot = pep_project.sample_table.copy()
+if annot.empty:
+    raise ValueError(f"PEP sample table at {pep_config_path} is empty.")
+
+annot = _explode_list_columns(annot)
+annot = _ensure_sample_columns(annot)
+
+if "read_type" not in annot.columns:
+    read_type = _get_nested(config, "project_info", "read_type", default="paired-end")
+    annot["read_type"] = read_type
+
+annot["sample_run"] = (
+    annot["sample"].astype(str) + "_" + annot["run"].astype(str)
+)
+
+# Validate and guard against duplicate sample/run combinations
+validate(annot, schema="../schemas/samples.schema.yml")
+duplicates = annot[annot.duplicated(subset=["sample_run"], keep=False)]
+if not duplicates.empty:
+    sys.stderr.write(
+        "\nError: Duplicate (sample, run) pairs found in the PEP sample table.\n"
+    )
+    sys.stderr.write(str(duplicates[["sample", "run", "sample_run"]]) + "\n\n")
+    sys.exit(1)
+
+annot["run"] = annot["run"].astype(str)
+annot = annot.set_index("sample", drop=False)
+
+sample_table_entry = pep_project.config.get("sample_table")
+if sample_table_entry is None:
+    raise ValueError(f"PEP config {pep_config_path} missing 'sample_table'.")
+annotation_sheet_path = (
+    sample_table_entry
+    if os.path.isabs(sample_table_entry)
+    else os.path.abspath(os.path.join(os.path.dirname(pep_config_path), sample_table_entry))
+)
+
+SAMPLE_SHEET = annotation_sheet_path
+st = annot
 
 
 #deseq2_md = pd.read_table("config/deseq2_metadata.csv", sep = ",").set_index('sample', drop = False)
