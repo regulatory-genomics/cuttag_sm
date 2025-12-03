@@ -366,8 +366,6 @@ diffbind - the results of Diffbind for each mark. Note that here, counts are nor
 
 dtools - fingerprint plot data for multiqc to use
 fastp - adapter-trimmed FASTQ files (if adapter-trimming option is enabled in `config.yml`)
-fastqc - fastqc results
-fastq_screen - fastq_screen results
 logs - runtime logs for each snakemake rule
 markd - duplicate marked bam files
 multiqc - contains the file multiqc_report.html with a lot of QC info about the experiment.

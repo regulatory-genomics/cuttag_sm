@@ -1,7 +1,5 @@
 name: fastp
 channels:
-  - bioconda
-  - conda-forge
-  - defaults
+  - gilberthan
 dependencies:
-  - fastp=0.20
+  - fastp=1.2.1

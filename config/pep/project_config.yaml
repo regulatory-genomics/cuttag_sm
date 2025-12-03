@@ -5,6 +5,12 @@ project:
   sample_table: "../samplesheet_test.tsv"
   raw_data: "/data2/litian/macrophage/data/CUT_test"
 
+paths:
+  data_dir: "/storage/zhangkaiLab/resource/Collaborators/Hanjie_Li/CUT-seq"
+  process_dir: "/storage/zhangkaiLab/hanlitian/macrophage/process"
+  database_dir: "/storage/zhangkaiLab/hanlitian/database/algin_ref/atac_pipeline"
+  shared_genome_dir: "/storage/zhangkaiLab/shared/genomes/GRCh38"
+
 sample_modifiers:
   append:
     R1: "{raw_data|data/raw}/{fastq_id}_R1.fastq.gz"

@@ -59,8 +59,6 @@ rule preseq_lcextrap:
 
 rule multiqc:
     input:
-        #get_fastqc_outputs(),
-        #get_fastq_screen_outputs(),
         expand(f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv", sample=sample_noigg),
         expand(f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt", sample=samps)
     output:
@@ -76,8 +74,6 @@ rule multiqc:
         # comment out the "export ..." line if not running pipeline through Singularity
         f"export LC_ALL=C.UTF-8; export LANG=C.UTF-8; "
         f"multiqc "
-        #f"{DATA_DIR}/fastqc "
-        #f"{DATA_DIR}/fastq_screen "
         f"{DATA_DIR}/plotEnrichment "
         f"{DATA_DIR}/callpeaks "
         f"{DATA_DIR}/preseq "

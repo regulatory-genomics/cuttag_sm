@@ -99,24 +99,6 @@ def get_reads():
         reads.append(f"{sample}.{run}_R2")
     return reads
 
-def get_fastqc_outputs():
-    outputs = []
-    for _, row in st.iterrows():
-        sample = row['sample']
-        run = str(row['run']) if 'run' in row else '1'
-        for mate in ['R1','R2']:
-            outputs.append(f"{get_data_dir()}/fastqc/{sample}.{run}_{mate}_fastqc.zip")
-    return outputs
-
-def get_fastq_screen_outputs():
-    outputs = []
-    for _, row in st.iterrows():
-        sample = row['sample']
-        run = str(row['run']) if 'run' in row else '1'
-        for mate in ['R1','R2']:
-            outputs.append(f"{get_data_dir()}/fastq_screen/{sample}.{run}_{mate}_screen.txt")
-    return outputs
-
 def get_igg(wildcards):
     """
     Returns the igg file for the sample unless

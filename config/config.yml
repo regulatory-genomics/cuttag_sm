@@ -1,6 +1,6 @@
 project_info:
   name: "20251111_cuttag_test"
-  description: "CUT&Tag macrophage pilot run"
+  description: "CUT&Tag macrophage"
   genome: "hg38"
   samples:
     table: "config/samplesheet_test.tsv"
@@ -54,10 +54,9 @@ pipeline_steps:
     padj_cutoff: 0.05
 
 reference:
-  genome_index: "/data2/litian/database/bowtie2/resources/atacseq_pipeline/hg38/indices_for_Bowtie2/hg38"
-  genome_fasta: "/data2/litian/database/genome/GRCh38.primary_assembly.genome.fa.gz"
+  genome_index: "{database_dir}/hg38/indices_for_Bowtie2/hg38"
+  genome_fasta: "{database_dir}/hg38/hg38.fa"
   genes_bed: "genes/hg38_refseq_genes.bed"
   chrom_sizes: "genes/hg38.chrom.sizes"
   adapter_fasta: "genes/adapter_seqs.fa"
-  fastq_screen_config: "config/fastq_screen.conf"
   blacklist: ""

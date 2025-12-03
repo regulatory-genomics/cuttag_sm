@@ -65,7 +65,6 @@ def _hydrate_config(cfg):
     cfg["FASTA"] = refs.get("genome_fasta", "")
     cfg["GENES"] = refs.get("genes_bed", "")
     cfg["CSIZES"] = refs.get("chrom_sizes", "")
-    cfg["FASTQ_SCREEN"] = refs.get("fastq_screen_config", "")
     cfg["ADAPTER_FASTA"] = refs.get("adapter_fasta", "")
     cfg["BLACKLIST"] = refs.get("blacklist", "") or ""
 
@@ -213,9 +212,6 @@ marks = get_marks()
 # base output directory from config
 DATA_DIR = config["output_base_dir"].rstrip("/")
 
-if not os.path.exists(os.path.join(DATA_DIR, "fastqc")):
-    os.makedirs(os.path.join(DATA_DIR, "fastqc"))
-
 sample_noigg = [k for k in samps if config["IGG"] not in k]
 marks_noigg = [m for m in marks if config["IGG"] not in m]
 
@@ -234,8 +230,6 @@ localrules: frip_plot, fraglength_plot
 
 rule all:
     input:
-        #expand(f"{DATA_DIR}/fastqc/{{read}}_fastqc.{{ext}}", read=reads, ext = ["html", "zip"]),
-        #expand(f"{DATA_DIR}/fastq_screen/{{read}}_screen.txt", read=reads),
         #expand(f"{DATA_DIR}/counts/{{mark}}_counts.tsv", mark=marks_noigg),
         #expand(f"{DATA_DIR}/counts/{{mark}}_consensus.bed", mark=marks_noigg),
         expand([f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam",
