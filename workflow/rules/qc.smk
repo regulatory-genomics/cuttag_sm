@@ -2,7 +2,8 @@
 DATA_DIR = config["output_base_dir"].rstrip("/")
 rule plotFinger:
     input:
-        f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam", f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam.bai"
+        f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam",
+        f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam.bai"
     output:
         f"{DATA_DIR}/dtools/fingerprint_{{sample}}.tsv"
     conda:
@@ -24,10 +25,9 @@ rule frip_plot:
     script:
         "../src/frip_plot.py"
 
-
 rule preseq:
     input:
-       rules.markdup.output
+        rules.markdup.output
     output:
         f"{DATA_DIR}/preseq/estimates_{{sample}}.txt"
     resources:
@@ -62,8 +62,8 @@ rule multiqc:
         expand(f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv", sample=sample_noigg),
         expand(f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt", sample=samps)
     output:
-        f"{DATA_DIR}/multiqc/multiqc_report.html",
-        f"{DATA_DIR}/multiqc/multiqc_data/multiqc_data.json"
+        f"{DATA_DIR}/Report/multiqc/multiqc_report.html",
+        f"{DATA_DIR}/Report/multiqc/multiqc_data/multiqc_data.json"
     conda:
         "../envs/multiqc.yml"
     singularity:
@@ -71,20 +71,17 @@ rule multiqc:
     log:
         f"{DATA_DIR}/logs/multiqc.log"
     shell:
-        # comment out the "export ..." line if not running pipeline through Singularity
-        f"export LC_ALL=C.UTF-8; export LANG=C.UTF-8; "
-        f"multiqc "
-        f"{DATA_DIR}/plotEnrichment "
-        f"{DATA_DIR}/callpeaks "
-        f"{DATA_DIR}/preseq "
-        f"{DATA_DIR}/logs "
-        f"-f -c workflow/src/multiqc_conf.yml -o {DATA_DIR}/multiqc "
-        f"--ignore {DATA_DIR}/homer "
-        f"--ignore {DATA_DIR}/aligned "
-        f"--ignore {DATA_DIR}/markd "
-        f"--ignore {DATA_DIR}/tracks "
-        f"--ignore {DATA_DIR}/counts "
-        f"> {{log}} 2>&1"
+        """
+        export LC_ALL=C.UTF-8; export LANG=C.UTF-8;
+        multiqc {DATA_DIR} \
+          -f -c workflow/src/multiqc_conf.yml -o {DATA_DIR}/Report/multiqc \
+          --ignore {DATA_DIR}/downtream_res/Homer \
+          --ignore {DATA_DIR}/middle_file \
+          --ignore {DATA_DIR}/Important_processed/Bam \
+          --ignore {DATA_DIR}/Important_processed/Track \
+          --ignore {DATA_DIR}/Important_processed/Peaks \
+          > {log} 2>&1
+        """
 
 
 rule count_peaks:

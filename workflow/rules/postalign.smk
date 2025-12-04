@@ -6,7 +6,7 @@ rule tracks:
         bam = rules.markdup.output,
         bai = rules.index.output,
     output:
-        f"{DATA_DIR}/tracks/{{sample}}.bw"
+        f"{DATA_DIR}/Important_processed/Track/tracks/{{sample}}.bw"
     conda:
         "../envs/dtools.yml"
     singularity:
@@ -31,7 +31,7 @@ rule fraglength:
     input:
         rules.markdup.output
     output:
-        f"{DATA_DIR}/markd/{{sample}}.sorted.markd.fraglen.tsv"
+        f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.fraglen.tsv"
     conda:
         "../envs/align.yml"
     threads: 1
@@ -42,9 +42,9 @@ rule fraglength:
 
 rule fraglength_plot:
     input:
-        expand(f"{DATA_DIR}/markd/{{sample}}.sorted.markd.fraglen.tsv", sample = samps)
+        expand(f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.fraglen.tsv", sample = samps)
     output:
-        f"{DATA_DIR}/markd/fraglen.html"
+        f"{DATA_DIR}/Report/fraglen.html"
     container: None
     threads: 1
     run:

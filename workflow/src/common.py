@@ -30,24 +30,30 @@ def get_tracks_by_mark_condition(wildcards):
     return list of tracks by mark_condition
     """
     st['mark_condition']=st['mark'].astype(str)+"_"+st['condition']
-    samps=st.groupby(["mark_condition"])['sample'].apply(list)[wildcards.mark_condition]
-    return [f"{get_data_dir()}/tracks/{s}.bw" for s in samps]
+    samps = st.groupby(["mark_condition"])["sample"].apply(list)[wildcards.mark_condition]
+    return [f"{get_data_dir()}/Important_processed/Track/tracks/{s}.bw" for s in samps]
     
 def get_peaks_by_mark_condition(wildcards):
     """
     return list of peaks by mark_condition
     """
-    st['mark_condition']=st['mark'].astype(str)+"_"+st['condition']
-    samps=st.groupby(["mark_condition"])['sample'].apply(list)[wildcards.mark_condition]
-    return [f"{get_data_dir()}/callpeaks/{s}_peaks.bed" for s in samps]
+    st["mark_condition"] = st["mark"].astype(str) + "_" + st["condition"]
+    samps = st.groupby(["mark_condition"])["sample"].apply(list)[wildcards.mark_condition]
+    return [
+        f"{get_data_dir()}/Important_processed/Peaks/callpeaks/{s}_peaks.bed"
+        for s in samps
+    ]
 
 def get_peaks_by_mark_condition_blacklist(wildcards):
     """
     return list of peaks by mark_condition
     """
-    st['mark_condition']=st['mark'].astype(str)+"_"+st['condition']
-    samps=st.groupby(["mark_condition"])['sample'].apply(list)[wildcards.mark_condition]
-    return [f"{get_data_dir()}/callpeaks/{s}_peaks_noBlacklist.bed" for s in samps]
+    st["mark_condition"] = st["mark"].astype(str) + "_" + st["condition"]
+    samps = st.groupby(["mark_condition"])["sample"].apply(list)[wildcards.mark_condition]
+    return [
+        f"{get_data_dir()}/Important_processed/Peaks/callpeaks/{s}_peaks_noBlacklist.bed"
+        for s in samps
+    ]
 
 
 def get_bowtie2_input(wildcards):
@@ -85,7 +91,10 @@ def get_sorted_bams_for_sample(wildcards):
     Build paths to per-run sorted BAMs for a sample
     """
     runs = get_runs_for_sample(wildcards)
-    return [f"{get_data_dir()}/aligned/{wildcards.sample}.{r}.sort.bam" for r in runs]
+    return [
+        f"{get_data_dir()}/middle_file/aligned/{wildcards.sample}.{r}.sort.bam"
+        for r in runs
+    ]
 
 def get_reads():
     """
@@ -105,10 +114,12 @@ def get_igg(wildcards):
     the sample is IgG then no control file is used.
     """ 
     if config['USEIGG']:
-        row = st[st['sample'] == wildcards.sample]
-        igg = str(row['igg'].iloc[0]) if not row.empty else ''
-        iggbam=f'{get_data_dir()}/markd/{igg}.sorted.markd.bam'
-        isigg=config['IGG'] in wildcards.sample
+        row = st[st["sample"] == wildcards.sample]
+        igg = str(row["igg"].iloc[0]) if not row.empty else ""
+        iggbam = (
+            f"{get_data_dir()}/Important_processed/Bam/markd/{igg}.sorted.markd.bam"
+        )
+        isigg = config["IGG"] in wildcards.sample
         if not isigg:
             return f'-c {iggbam}'
         else:
@@ -120,7 +131,7 @@ def get_callpeaks(wildcards):
     """
     Returns the callpeaks input files
     """
-    bam=f"{get_data_dir()}/markd/{wildcards.sample}.sorted.markd.bam"
+    bam = f"{get_data_dir()}/Important_processed/Bam/markd/{wildcards.sample}.sorted.markd.bam"
     # Only the BAM is needed by gopeaks; index will be created by previous rule
     return [bam]
 
@@ -158,6 +169,7 @@ def get_macs2_outputs(data_dir, igg_name="IgG"):
     Excludes IgG control samples.
     """
     outputs = []
+    peak_dir = os.path.join(data_dir, "Important_processed", "Peaks", "callpeaks")
     for sample in st['sample'].unique():
         # Skip IgG samples
         if igg_name.lower() in str(sample).lower():
@@ -175,18 +187,22 @@ def get_macs2_outputs(data_dir, igg_name="IgG"):
         # Check if it's a broad peak marker (me3)
         if mark in {"h3k27me3"}:
             # Broad peak outputs
-            outputs.extend([
-                f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.xls",
-                f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.broadPeak",
-                f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.gappedPeak"
-            ])
+            outputs.extend(
+                [
+                    f"{peak_dir}/macs2_broad_{sample}_peaks.xls",
+                    f"{peak_dir}/macs2_broad_{sample}_peaks.broadPeak",
+                    f"{peak_dir}/macs2_broad_{sample}_peaks.gappedPeak",
+                ]
+            )
         else:
             # Narrow peak outputs
-            outputs.extend([
-                f"{data_dir}/callpeaks/macs2_narrow_{sample}_peaks.xls",
-                f"{data_dir}/callpeaks/macs2_narrow_{sample}_peaks.narrowPeak",
-                f"{data_dir}/callpeaks/macs2_narrow_{sample}_summits.bed"
-            ])
+            outputs.extend(
+                [
+                    f"{peak_dir}/macs2_narrow_{sample}_peaks.xls",
+                    f"{peak_dir}/macs2_narrow_{sample}_peaks.narrowPeak",
+                    f"{peak_dir}/macs2_narrow_{sample}_summits.bed",
+                ]
+            )
     return outputs
 
 def is_broad_mark(wildcards):
@@ -208,6 +224,7 @@ def get_macs2_peak_files(data_dir, igg_name="IgG"):
     Excludes IgG control samples.
     """
     peak_files = []
+    peak_dir = os.path.join(data_dir, "Important_processed", "Peaks", "callpeaks")
     for sample in st['sample'].unique():
         # Skip IgG samples
         if igg_name.lower() in str(sample).lower():
@@ -225,8 +242,8 @@ def get_macs2_peak_files(data_dir, igg_name="IgG"):
         # Check if it's a broad peak marker (me3)
         if mark in {"h3k27me3"}:
             # Broad peak file
-            peak_files.append(f"{data_dir}/callpeaks/macs2_broad_{sample}_peaks.broadPeak")
+            peak_files.append(f"{peak_dir}/macs2_broad_{sample}_peaks.broadPeak")
         else:
             # Narrow peak file
-            peak_files.append(f"{data_dir}/callpeaks/macs2_narrow_{sample}_peaks.narrowPeak")
+            peak_files.append(f"{peak_dir}/macs2_narrow_{sample}_peaks.narrowPeak")
     return peak_files

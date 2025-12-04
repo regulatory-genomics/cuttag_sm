@@ -6,10 +6,10 @@ if config.get("aligner", "bowtie2") == "bowtie2":
     # align runs to genome (per-run) using bowtie2
     rule align:
         input:
-            r1 = (lambda wc: f"{DATA_DIR}/fastp/{wc.sample}.{wc.run}_R1.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[0]),
-            r2 = (lambda wc: f"{DATA_DIR}/fastp/{wc.sample}.{wc.run}_R2.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[1])
+            r1 = (lambda wc: f"{DATA_DIR}/middle_file/Trimmed_fastq/fastp/{wc.sample}.{wc.run}_R1.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[0]),
+            r2 = (lambda wc: f"{DATA_DIR}/middle_file/Trimmed_fastq/fastp/{wc.sample}.{wc.run}_R2.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[1])
         output:
-            f"{DATA_DIR}/aligned/{{sample}}.{{run}}.bam"
+            f"{DATA_DIR}/middle_file/aligned/{{sample}}.{{run}}.bam"
         log:
             err=f"{DATA_DIR}/logs/bowtie2_{{sample}}.{{run}}.err"
         conda:
@@ -27,10 +27,10 @@ else:
     # align runs to genome (per-run) using bwa-mem2
     rule align:
         input:
-            r1 = (lambda wc: f"{DATA_DIR}/fastp/{wc.sample}.{wc.run}_R1.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[0]),
-            r2 = (lambda wc: f"{DATA_DIR}/fastp/{wc.sample}.{wc.run}_R2.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[1])
+            r1 = (lambda wc: f"{DATA_DIR}/middle_file/Trimmed_fastq/fastp/{wc.sample}.{wc.run}_R1.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[0]),
+            r2 = (lambda wc: f"{DATA_DIR}/middle_file/Trimmed_fastq/fastp/{wc.sample}.{wc.run}_R2.fastq.gz") if config["TRIM_ADAPTERS"] else (lambda wc: get_bowtie2_input_by_run(wc)[1])
         output:
-            f"{DATA_DIR}/aligned/{{sample}}.{{run}}.bam"
+            f"{DATA_DIR}/middle_file/aligned/{{sample}}.{{run}}.bam"
         log:
             err=f"{DATA_DIR}/logs/bwa_mem2_{{sample}}.{{run}}.err"
         params:
@@ -50,9 +50,9 @@ else:
 
 rule sort:
     input:
-        f"{DATA_DIR}/aligned/{{sample}}.{{run}}.bam"
+        f"{DATA_DIR}/middle_file/aligned/{{sample}}.{{run}}.bam"
     output: 
-        temp(f"{DATA_DIR}/aligned/{{sample}}.{{run}}.sort.bam")
+        temp(f"{DATA_DIR}/middle_file/aligned/{{sample}}.{{run}}.sort.bam")
     conda:
         "../envs/sambamba.yml"
     singularity:
@@ -67,7 +67,7 @@ rule merge_runs:
     input:
         get_sorted_bams_for_sample
     output:
-        temp(f"{DATA_DIR}/aligned/{{sample}}.merged.bam")
+        temp(f"{DATA_DIR}/middle_file/aligned/{{sample}}.merged.bam")
     conda:
         "../envs/align.yml"
     singularity:
@@ -82,7 +82,7 @@ rule markdup:
     input:
         rules.merge_runs.output
     output:
-        f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam"
+        f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam"
     conda:
         "../envs/sambamba.yml"
     singularity:
@@ -97,7 +97,7 @@ rule index:
     input:
         rules.markdup.output
     output:
-        f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam.bai"
+        f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam.bai"
     conda:
         "../envs/sambamba.yml"
     singularity:

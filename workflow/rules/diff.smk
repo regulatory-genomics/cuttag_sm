@@ -2,7 +2,7 @@ DATA_DIR = config["output_base_dir"].rstrip("/")
 
 rule diffbind:
     input:
-        consensus_peaks = f"{DATA_DIR}/counts/{{mark}}_consensus.bed",
+        consensus_peaks = f"{DATA_DIR}/Important_processed/Peaks/counts/{{mark}}_consensus.bed",
         metadata = "config/diffbind_config.csv",
         genes = config["GENES"]
     output:
@@ -38,7 +38,7 @@ rule diffbind_plots:
 
 rule deseq2:
     input:
-        counts=f"{DATA_DIR}/counts/{{mark}}_counts.tsv",
+        counts=f"{DATA_DIR}/Important_processed/Peaks/counts/{{mark}}_counts.tsv",
         meta="config/deseq2_metadata.csv",
         genes=config["GENES"]
     output:

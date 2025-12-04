@@ -5,29 +5,29 @@ rule callpeaks:
     input:
         get_callpeaks
     output:
-        f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed"
+        f"{DATA_DIR}/Important_processed/Peaks/callpeaks/{{sample}}_peaks.bed"
     conda: 
         "../envs/gopeaks.yml"
     singularity:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "gopeaks.sif")
     log:
-        f"{DATA_DIR}/callpeaks/{{sample}}_gopeaks.json"
+        f"{DATA_DIR}/logs/{{sample}}_gopeaks.json"
     threads: 4
     params:
         igg = get_igg,
         params = callpeaks_params
     shell:
-        f"gopeaks -b {{input[0]}} {{params.igg}} -o {DATA_DIR}/callpeaks/{{wildcards.sample}} {{params.params}} > {{log}} 2>&1"
+        f"gopeaks -b {{input[0]}} {{params.igg}} -o {DATA_DIR}/Important_processed/Peaks/callpeaks/{{wildcards.sample}} {{params.params}} > {{log}} 2>&1"
 
 rule callpeaks_macs2_broad:
     input:
         treatment=lambda wc: get_callpeaks(wc)[0]
     output:
-        f"{DATA_DIR}/callpeaks/macs2_broad_{{sample}}_peaks.xls",
-        f"{DATA_DIR}/callpeaks/macs2_broad_{{sample}}_peaks.broadPeak",
-        f"{DATA_DIR}/callpeaks/macs2_broad_{{sample}}_peaks.gappedPeak"
+        f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_broad_{{sample}}_peaks.xls",
+        f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_broad_{{sample}}_peaks.broadPeak",
+        f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_broad_{{sample}}_peaks.gappedPeak"
     log:
-        f"{DATA_DIR}/callpeaks/{{sample}}_macs2peaks_broad.json"
+        f"{DATA_DIR}/logs/{{sample}}_macs2peaks_broad.json"
     params:
         extra=(lambda wc: (
             f"-f BAMPE -g " + (
@@ -44,11 +44,11 @@ rule callpeaks_macs2_narrow:
     input:
         treatment=lambda wc: get_callpeaks(wc)[0]
     output:
-        f"{DATA_DIR}/callpeaks/macs2_narrow_{{sample}}_peaks.xls",
-        f"{DATA_DIR}/callpeaks/macs2_narrow_{{sample}}_peaks.narrowPeak",
-        f"{DATA_DIR}/callpeaks/macs2_narrow_{{sample}}_summits.bed"
+        f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_narrow_{{sample}}_peaks.xls",
+        f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_narrow_{{sample}}_peaks.narrowPeak",
+        f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_narrow_{{sample}}_summits.bed"
     log:
-        f"{DATA_DIR}/callpeaks/{{sample}}_macs2peaks_narrow.json"
+        f"{DATA_DIR}/logs/{{sample}}_macs2peaks_narrow.json"
     params:
         extra=(lambda wc: (
             f"-f BAMPE -g " + (
@@ -65,9 +65,9 @@ rule callpeaks_macs2_narrow:
 if os.path.isfile(blacklist_file):
     rule remove_blacklist:
         input:
-            f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed"
+            f"{DATA_DIR}/Important_processed/Peaks/callpeaks/{{sample}}_peaks.bed"
         output:
-            f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed"
+            f"{DATA_DIR}/Important_processed/Peaks/callpeaks/{{sample}}_peaks_noBlacklist.bed"
         params:
             blacklist = blacklist_file
         conda:
@@ -84,7 +84,7 @@ if os.path.isfile(blacklist_file):
         input:
             get_peaks_by_mark_condition_blacklist
         output:
-            f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed"
+            f"{DATA_DIR}/Important_processed/Peaks/highConf/{{mark_condition}}.highConf.bed"
         conda:
             "../envs/bedtools.yml"
         singularity:
@@ -104,7 +104,7 @@ else:
         input:
             get_peaks_by_mark_condition
         output:
-            f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed"
+            f"{DATA_DIR}/Important_processed/Peaks/highConf/{{mark_condition}}.highConf.bed"
         conda:
             "../envs/bedtools.yml"
         singularity:
@@ -122,10 +122,15 @@ else:
 # get consensus
 rule consensus:
     input:
-        expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed", sample=sample_noigg) if os.path.isfile(blacklist_file) else expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks.bed", sample=sample_noigg)
+        expand(f"{DATA_DIR}/Important_processed/Peaks/callpeaks/{{sample}}_peaks_noBlacklist.bed", sample=sample_noigg)
+        if os.path.isfile(blacklist_file)
+        else expand(
+            f"{DATA_DIR}/Important_processed/Peaks/callpeaks/{{sample}}_peaks.bed",
+            sample=sample_noigg,
+        )
     output:
-        consensus_counts = f"{DATA_DIR}/counts/{{mark}}_counts.tsv",
-        consensus_bed = f"{DATA_DIR}/counts/{{mark}}_consensus.bed"
+        consensus_counts = f"{DATA_DIR}/Important_processed/Peaks/counts/{{mark}}_counts.tsv",
+        consensus_bed = f"{DATA_DIR}/Important_processed/Peaks/counts/{{mark}}_consensus.bed"
     params:
         blacklist_flag = "-b" if os.path.isfile(blacklist_file) else ""
     conda:
@@ -138,11 +143,11 @@ rule consensus:
 rule frip:
     input:
         peaks=lambda wc: (
-            f"{DATA_DIR}/callpeaks/macs2_broad_{wc.sample}_peaks.broadPeak"
+            f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_broad_{wc.sample}_peaks.broadPeak"
             if is_broad_mark(wc)
-            else f"{DATA_DIR}/callpeaks/macs2_narrow_{wc.sample}_peaks.narrowPeak"
+            else f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_narrow_{wc.sample}_peaks.narrowPeak"
         ),
-        bam=f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam"
+        bam=f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam"
     output:
         f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.png", f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv"
     conda:
@@ -157,13 +162,13 @@ rule frip:
 rule genomic_coverage:
     input:
         peaks=lambda wc: (
-            f"{DATA_DIR}/callpeaks/macs2_broad_{wc.sample}_peaks.broadPeak"
+            f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_broad_{wc.sample}_peaks.broadPeak"
             if is_broad_mark(wc)
-            else f"{DATA_DIR}/callpeaks/macs2_narrow_{wc.sample}_peaks.narrowPeak"
+            else f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_narrow_{wc.sample}_peaks.narrowPeak"
         ),
         chrom_sizes=config["CSIZES"]
     output:
-        f"{DATA_DIR}/coverage/{{sample}}_coverage.tsv"
+        f"{DATA_DIR}/Important_processed/Peaks/coverage/{{sample}}_coverage.tsv"
     conda:
         "../envs/bedtools.yml"
     singularity:
@@ -192,9 +197,9 @@ rule genomic_coverage:
 
 rule coverage_report:
     input:
-        expand(f"{DATA_DIR}/coverage/{{sample}}_coverage.tsv", sample=sample_noigg)
+        expand(f"{DATA_DIR}/Important_processed/Peaks/coverage/{{sample}}_coverage.tsv", sample=sample_noigg)
     output:
-        f"{DATA_DIR}/coverage/coverage_report.tsv"
+        f"{DATA_DIR}/Report/coverage_report.tsv"
     log:
         f"{DATA_DIR}/logs/coverage_report.log"
     shell:

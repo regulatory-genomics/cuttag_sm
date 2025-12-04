@@ -261,9 +261,9 @@ rule all:
     input:
         #expand(f"{DATA_DIR}/counts/{{mark}}_counts.tsv", mark=marks_noigg),
         #expand(f"{DATA_DIR}/counts/{{mark}}_consensus.bed", mark=marks_noigg),
-        expand([f"{DATA_DIR}/markd/{{sample}}.sorted.markd.bam",
-                f"{DATA_DIR}/markd/{{sample}}.sorted.markd.fraglen.tsv",
-                f"{DATA_DIR}/tracks/{{sample}}.bw",
+        expand([f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam",
+                f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.fraglen.tsv",
+                f"{DATA_DIR}/Important_processed/Track/tracks/{{sample}}.bw",
                 f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt",
                 ], sample=samps),
         # Peak calling outputs (gopeaks)
@@ -276,8 +276,8 @@ rule all:
 
         #expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed", sample=samps) if os.path.isfile(blacklist_file) else [],
 
-        f"{DATA_DIR}/multiqc/multiqc_report.html",
-        f"{DATA_DIR}/multiqc/multiqc_data/multiqc_data.json",
+        f"{DATA_DIR}/Report/multiqc/multiqc_report.html",
+        f"{DATA_DIR}/Report/multiqc/multiqc_data/multiqc_data.json",
 
         #expand([f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-rld-pca.pdf",
         #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-vsd-pca.pdf",
@@ -293,11 +293,11 @@ rule all:
         #expand(f"{DATA_DIR}/diffbind/{{mark}}/{{mark}}_DBAobj.rds", mark=marks_noigg),
         #expand(f"{DATA_DIR}/diffbind/{{mark}}/{{mark}}_pca.pdf", mark=marks_noigg),
         # quality control plots
-        f"{DATA_DIR}/markd/fraglen.html",
+        f"{DATA_DIR}/Report/fraglen.html",
         f"{DATA_DIR}/plotEnrichment/frip.html",
         f"{DATA_DIR}/multiqc/peakcount.txt",
         # Genomic coverage report
-        f"{DATA_DIR}/coverage/coverage_report.tsv",
+        f"{DATA_DIR}/Report/coverage_report.tsv",
         
         #expand(f"{DATA_DIR}/mergebw/{{mark_condition}}.bw", mark_condition=mark_conditions),
         #expand(f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed", mark_condition=mark_conditions),

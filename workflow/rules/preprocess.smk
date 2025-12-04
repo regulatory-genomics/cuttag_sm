@@ -9,8 +9,8 @@ if config["TRIM_ADAPTERS"]:
             r1 = lambda wc: get_bowtie2_input_by_run(wc)[0],
             r2 = lambda wc: get_bowtie2_input_by_run(wc)[1]
         output:
-            r1 = temp(f"{DATA_DIR}/fastp/{{sample}}.{{run}}_R1.fastq.gz"),
-            r2 = temp(f"{DATA_DIR}/fastp/{{sample}}.{{run}}_R2.fastq.gz")
+            r1 = temp(f"{DATA_DIR}/middle_file/Trimmed_fastq/fastp/{{sample}}.{{run}}_R1.fastq.gz"),
+            r2 = temp(f"{DATA_DIR}/middle_file/Trimmed_fastq/fastp/{{sample}}.{{run}}_R2.fastq.gz")
         params:
             adapter_fasta_file = config["ADAPTER_FASTA"]
         conda: 
