@@ -69,7 +69,7 @@ def _hydrate_config(cfg):
     cfg["BLACKLIST"] = refs.get("blacklist", "") or ""
 
 
-configfile: "../config/config.yml"
+configfile: "config/config.yml"
 _hydrate_config(config)
 validate(config, schema="../schemas/config.schema.yml")
 
@@ -135,7 +135,7 @@ def _ensure_sample_columns(df):
     return normalized
 
 
-# Load PEP configuration
+# Load (optional) PEP configuration only for path placeholders
 pep_config_value = _get_nested(
     config,
     "project_info",
@@ -148,18 +148,56 @@ pep_config_path = (
     if os.path.isabs(pep_config_value)
     else os.path.join(workflow.basedir, pep_config_value)
 )
-pep_project = Project(pep_config_path)
 
-if "paths" in pep_project.config:
-    config.setdefault("paths", {}).update(pep_project.config["paths"])
+try:
+    pep_project = Project(pep_config_path)
+except Exception:
+    pep_project = None
+
+if pep_project is not None:
+    # merge PEP paths
+    if "paths" in pep_project.config:
+        config.setdefault("paths", {}).update(pep_project.config["paths"])
+    # also expose commonly used project-level paths for placeholder resolution
+    proj_cfg = pep_project.config.get("project", {})
+    raw_data = proj_cfg.get("raw_data")
+    if raw_data:
+        config.setdefault("paths", {})["raw_data"] = raw_data
+    proj_name = proj_cfg.get("name")
+    if proj_name:
+        config["paths"]["project_name"] = proj_name
+
 _resolve_config_paths(config, config.get("paths", {}))
 
-# Build sample annotation table from the PEP project
-annot = pep_project.sample_table.copy()
-if annot.empty:
-    raise ValueError(f"PEP sample table at {pep_config_path} is empty.")
+# ---------------------------------------------------------------------------
+# Build sample annotation table directly from a CSV/TSV file
+# ---------------------------------------------------------------------------
+sample_table_rel = _get_nested(
+    config,
+    "project_info",
+    "samples",
+    "table",
+)
+if not sample_table_rel:
+    raise ValueError(
+        "Config is missing 'project_info -> samples -> table' with path to sample sheet."
+    )
 
-annot = _explode_list_columns(annot)
+sample_table_path = (
+    sample_table_rel
+    if os.path.isabs(sample_table_rel)
+    else os.path.join(workflow.basedir, sample_table_rel)
+)
+
+# Try to infer separator: default to comma, fall back to tab if only one column
+annot = pd.read_csv(sample_table_path, sep=",")
+if annot.shape[1] == 1:
+    annot = pd.read_csv(sample_table_path, sep="\t")
+
+if annot.empty:
+    raise ValueError(f"Sample table at {sample_table_path} is empty.")
+
+# Normalise column names to what the workflow expects
 annot = _ensure_sample_columns(annot)
 
 if "read_type" not in annot.columns:
@@ -175,7 +213,7 @@ validate(annot, schema="../schemas/samples.schema.yml")
 duplicates = annot[annot.duplicated(subset=["sample_run"], keep=False)]
 if not duplicates.empty:
     sys.stderr.write(
-        "\nError: Duplicate (sample, run) pairs found in the PEP sample table.\n"
+        "\nError: Duplicate (sample, run) pairs found in the sample table.\n"
     )
     sys.stderr.write(str(duplicates[["sample", "run", "sample_run"]]) + "\n\n")
     sys.exit(1)
@@ -183,16 +221,7 @@ if not duplicates.empty:
 annot["run"] = annot["run"].astype(str)
 annot = annot.set_index("sample", drop=False)
 
-sample_table_entry = pep_project.config.get("sample_table")
-if sample_table_entry is None:
-    raise ValueError(f"PEP config {pep_config_path} missing 'sample_table'.")
-annotation_sheet_path = (
-    sample_table_entry
-    if os.path.isabs(sample_table_entry)
-    else os.path.abspath(os.path.join(os.path.dirname(pep_config_path), sample_table_entry))
-)
-
-SAMPLE_SHEET = annotation_sheet_path
+SAMPLE_SHEET = os.path.abspath(sample_table_path)
 st = annot
 
 

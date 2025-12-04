@@ -3,17 +3,17 @@ project_info:
   description: "CUT&Tag macrophage"
   genome: "hg38"
   samples:
-    table: "config/samplesheet_test.tsv"
-    pep_config: "config/pep/project_config.yaml"
+    table: "../config/samplesheet_test.csv"
+    pep_config: "../config/pep/project_config.yaml"
     pep_attributes:
       raw_data_attribute: "raw_data|data/raw"
       fastq_pairs:
         R1: "{raw_data|data/raw}/{fastq_id}_R1.fastq.gz"
         R2: "{raw_data|data/raw}/{fastq_id}_R2.fastq.gz"
   data:
-    raw_data_root: "/data2/litian/macrophage/data/CUT_test"
+    raw_data_root: "{raw_data}"
   outputs:
-    root: "/data2/litian/macrophage/process/20251111_cuttag_test/"
+    root: "{process_dir}/{project_name}/"
     structure:
       important_processed:
         bam: "important_processed/bam"

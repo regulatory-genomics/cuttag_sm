@@ -22,7 +22,7 @@ properties:
     Peaks:
         type: string
         description: path to BED file containing consensus peaks for histone mark/protein corresponding to each sample
-       # pattern: "data\/counts\/(.+)_consensus.bed"
+        # pattern: "data\/counts\/(.+)_consensus.bed"
     PeakCaller:
         type: string
         description: string specifying the peak caller used, or how the file specified by Peaks will be parsed if it is not a BED file. Valid values for Diffbind include raw, bed, narrow, macs, swembl, bayes, peakset, or fp4.

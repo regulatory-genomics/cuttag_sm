@@ -17,9 +17,6 @@ properties:
   GENES:
     type: string
     description: path to a BED6 file with gene name as the 4th column
-  FASTQ_SCREEN:
-    type: string
-    description: path to a fastq screen config file
   FASTA:
     type: string
     description: path to a FASTA file corresponding to the GENOME
@@ -46,7 +43,6 @@ required:
   - CSIZES
   - GENOME
   - GENES
-  - FASTQ_SCREEN
   - FASTA
   - N_INTERSECTS
   - TRIM_ADAPTERS
