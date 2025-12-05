@@ -5,7 +5,7 @@ rule plotFinger:
         f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam",
         f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam.bai"
     output:
-        f"{DATA_DIR}/dtools/fingerprint_{{sample}}.tsv"
+        f"{DATA_DIR}/Report/dtools/fingerprint_{{sample}}.tsv"
     conda:
         "../envs/dtools.yml"
     singularity:
@@ -17,9 +17,9 @@ rule plotFinger:
 
 rule frip_plot:
     input:
-        expand(f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv", sample = sample_noigg)
+        expand(f"{DATA_DIR}/Report/plotEnrichment/frip_{{sample}}.tsv", sample = sample_noigg)
     output:
-        f"{DATA_DIR}/plotEnrichment/frip.html"
+        f"{DATA_DIR}/Report/plotEnrichment/frip.html"
     #conda:
     #    "../envs/plot_report.yml"
     script:
@@ -45,7 +45,7 @@ rule preseq_lcextrap:
     input:
         rules.markdup.output
     output:
-        f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt"
+        f"{DATA_DIR}/Report/preseq/lcextrap_{{sample}}.txt"
     resources:
         defect_mode = defect_mode
     conda:
@@ -59,8 +59,8 @@ rule preseq_lcextrap:
 
 rule multiqc:
     input:
-        expand(f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv", sample=sample_noigg),
-        expand(f"{DATA_DIR}/preseq/lcextrap_{{sample}}.txt", sample=samps)
+        expand(f"{DATA_DIR}/Report/plotEnrichment/frip_{{sample}}.tsv", sample=sample_noigg),
+        expand(f"{DATA_DIR}/Report/preseq/lcextrap_{{sample}}.txt", sample=samps)
     output:
         f"{DATA_DIR}/Report/multiqc/multiqc_report.html",
         f"{DATA_DIR}/Report/multiqc/multiqc_data/multiqc_data.json"
@@ -88,7 +88,7 @@ rule count_peaks:
     input:
         get_macs2_peak_files(DATA_DIR, config["IGG"])
     output:
-        f"{DATA_DIR}/multiqc/peakcount.txt"
+        f"{DATA_DIR}/Report/multiqc/peakcount.txt"
     shell:
         """
         if [ -z "{input}" ]; then

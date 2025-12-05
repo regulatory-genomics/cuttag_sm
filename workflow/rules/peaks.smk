@@ -149,7 +149,7 @@ rule frip:
         ),
         bam=f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam"
     output:
-        f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.png", f"{DATA_DIR}/plotEnrichment/frip_{{sample}}.tsv"
+        f"{DATA_DIR}/Report/plotEnrichment/frip_{{sample}}.png", f"{DATA_DIR}/Report/plotEnrichment/frip_{{sample}}.tsv"
     conda:
         "../envs/dtools.yml"
     singularity:

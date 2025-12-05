@@ -61,7 +61,7 @@ rule sort:
     log:
         f"{DATA_DIR}/logs/sambamba_sort_{{sample}}.{{run}}.log"
     shell:
-        f"sambamba sort --tmpdir={DATA_DIR}/aligned -t {{threads}} -o {{output}} {{input}} > {{log}} 2>&1"
+        f"sambamba sort --tmpdir={DATA_DIR}/middle_file/aligned -t {{threads}} -o {{output}} {{input}} > {{log}} 2>&1"
 
 rule merge_runs:
     input:
@@ -91,7 +91,7 @@ rule markdup:
     log:
         f"{DATA_DIR}/logs/sambamba_markdup_{{sample}}.log"
     shell:
-        f"sambamba markdup --tmpdir={DATA_DIR}/markd -t {{threads}} {{input}} {{output}} > {{log}} 2>&1"
+        f"sambamba markdup --tmpdir={DATA_DIR}/Important_processed/Bam/markd -t {{threads}} {{input}} {{output}} > {{log}} 2>&1"
 
 rule index:
     input:
