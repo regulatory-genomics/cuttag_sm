@@ -1,9 +1,16 @@
 name: cutTag-multiqc
 channels:
-  - bioconda
   - conda-forge
-  - defaults
+  - bioconda
+  - nodefaults
 dependencies:
-  - multiqc=1.14
-  - python=3.10
-  
+  - multiqc>=1.32
+  - python>=3.11
+  - setuptools
+  - pandas
+  - pytables
+  - pip
+# Note: The cuttag_report plugin should be installed separately using:
+# pip install -e workflow/src/multiqc_cuttag --force-reinstall --no-deps
+# This allows for local development and testing
+# Force reinstall 2025-12-08 / 3

@@ -73,10 +73,19 @@ rule multiqc:
     shell:
         """
         export LC_ALL=C.UTF-8; export LANG=C.UTF-8;
-        multiqc {DATA_DIR}/Report/ {DATA_DIR}/logs \
-            -f -c workflow/src/multiqc_conf.yml -o {DATA_DIR}/Report/multiqc \
+        
+        # Install local multiqc_cuttag plugin
+        # Use --no-build-isolation to use conda's setuptools and avoid proxy issues
+        pip install -e workflow/src/multiqc_cuttag --force-reinstall --no-deps --no-build-isolation >> {log} 2>&1 || echo "Warning: Plugin installation failed, continuing anyway..." >> {log} 2>&1
+        
+        # Run MultiQC
+        multiqc {DATA_DIR}/Report/ {DATA_DIR}/logs/ \
+            --ignore {DATA_DIR}/Report/multiqc \
+            -o {DATA_DIR}/Report/multiqc \
+            -f \
+            -c workflow/src/multiqc_conf.yml \
             --cl-config "annotation: {SAMPLE_SHEET}" \
-            > {log} 2>&1
+            >> {log} 2>&1
         """
 
 
