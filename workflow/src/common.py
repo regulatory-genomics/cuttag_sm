@@ -117,7 +117,7 @@ def get_igg(wildcards):
         row = st[st["sample"] == wildcards.sample]
         igg = str(row["igg"].iloc[0]) if not row.empty else ""
         iggbam = (
-            f"{get_data_dir()}/Important_processed/Bam/markd/{igg}.sorted.markd.bam"
+            f"{get_data_dir()}/Important_processed/Bam/{igg}.sorted.markd.bam"
         )
         isigg = config["IGG"] in wildcards.sample
         if not isigg:
@@ -131,7 +131,7 @@ def get_callpeaks(wildcards):
     """
     Returns the callpeaks input files
     """
-    bam = f"{get_data_dir()}/Important_processed/Bam/markd/{wildcards.sample}.sorted.markd.bam"
+    bam = f"{get_data_dir()}/Important_processed/Bam/{wildcards.sample}.sorted.markd.bam"
     # Only the BAM is needed by gopeaks; index will be created by previous rule
     return [bam]
 

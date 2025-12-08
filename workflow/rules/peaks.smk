@@ -147,7 +147,7 @@ rule frip:
             if is_broad_mark(wc)
             else f"{DATA_DIR}/Important_processed/Peaks/callpeaks/macs2_narrow_{wc.sample}_peaks.narrowPeak"
         ),
-        bam=f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam"
+        bam=f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam"
     output:
         f"{DATA_DIR}/Report/plotEnrichment/frip_{{sample}}.png", f"{DATA_DIR}/Report/plotEnrichment/frip_{{sample}}.tsv"
     conda:

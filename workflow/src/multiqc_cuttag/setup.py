@@ -33,7 +33,9 @@ setup(
             'disable_cuttag_report = cuttag_report.cli:disable_cuttag_report'
         ],
         'multiqc.hooks.v1': [
-            'execution_start = cuttag_report.cuttag_report:cuttag_report_execution_start'
+            'execution_start = cuttag_report.cuttag_report:cuttag_report_execution_start',
+            'after_modules = cuttag_report.cuttag_report:cuttag_report_after_modules',
+            'before_report_generation = cuttag_report.cuttag_report:cuttag_report_before_report_generation'
         ]
     },
     classifiers = [

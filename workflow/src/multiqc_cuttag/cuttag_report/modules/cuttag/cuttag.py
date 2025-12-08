@@ -24,7 +24,7 @@ class MultiqcModule(BaseMultiqcModule):
 
     def __init__(self):
         # Halt execution if we've disabled the plugin
-        if config.kwargs.get("disable_cuttag_report", True):
+        if config.kwargs.get("disable_cuttag_report", False):
             return None
 
         # Initialise the parent object
@@ -37,10 +37,41 @@ class MultiqcModule(BaseMultiqcModule):
 
         log.info("Initialized cuttag module")
 
+        # Try to load optional sample annotation sheet FIRST (to enable sample name normalization)
+        self.sample_sas_dict = {}
+        self.sample_name_map = {}  # Maps log file names to canonical sample names
+        annotation_path = getattr(config, "annotation", None)
+        if annotation_path is not None:
+            try:
+                with open(annotation_path, "r") as fh:
+                    sample_sas = csv.DictReader(fh)
+                    for row in sample_sas:
+                        sample_name = row.get("sample_name", "").strip() or row.get("sample", "").strip()
+                        if sample_name:
+                            self.sample_sas_dict[sample_name] = row
+                            # Build mapping for common log file name patterns
+                            run = row.get("run", "").strip() or "1"
+                            # Map various patterns to canonical sample name
+                            self.sample_name_map[f"{sample_name}_{run}"] = sample_name
+                            self.sample_name_map[f"{sample_name}{run}_{sample_name}{run}"] = sample_name
+                            self.sample_name_map[sample_name] = sample_name
+                log.info("Loaded sample annotation for {} samples".format(len(self.sample_sas_dict)))
+            except Exception as exc:
+                log.warning(
+                    "Could not load annotation file '{}': {}".format(
+                        annotation_path, str(exc)
+                    )
+                )
+
         # Parse CUT&Tag stats for each sample from '*.stats.tsv'
         self.cuttag_data = {}
         for f in self.find_log_files(sp_key="cuttag"):
-            self.cuttag_data[f["s_name"]] = self.parse_cuttag_stats(f["f"])
+            # Normalize the sample name using the annotation mapping
+            original_name = f["s_name"]
+            normalized_name = self._normalize_sample_name(original_name)
+            self.cuttag_data[normalized_name] = self.parse_cuttag_stats(f["f"])
+            if original_name != normalized_name:
+                log.debug(f"Normalized sample name: '{original_name}' -> '{normalized_name}'")
         log.info(
             "Found stats file for {} CUT&Tag samples".format(len(self.cuttag_data))
         )
@@ -52,26 +83,68 @@ class MultiqcModule(BaseMultiqcModule):
         # Remove ignored samples if there is any
         self.cuttag_data = self.ignore_samples(self.cuttag_data)
 
-        # Try to load optional sample annotation sheet (safe to skip if missing)
-        self.sample_sas_dict = {}
-        annotation_path = getattr(config, "annotation", None)
-        if annotation_path is not None:
-            try:
-                with open(annotation_path, "r") as fh:
-                    sample_sas = csv.DictReader(fh)
-                    for row in sample_sas:
-                        if "sample_name" in row:
-                            self.sample_sas_dict[row["sample_name"]] = row
-            except Exception as exc:
-                log.warning(
-                    "Could not load annotation file '{}': {}".format(
-                        annotation_path, str(exc)
-                    )
-                )
-
         # Add stats to general table
         self.add_cuttag_to_general_stats()
 
+    def _normalize_sample_name(self, log_name):
+        """
+        Normalize sample names from log files to canonical sample names.
+        Handles patterns like:
+        - sample1_sample2 (fastp concatenated) -> sample
+        - bowtie2_sample.1.err -> sample
+        - sambamba_markdup_sample -> sample
+        """
+        import re
+        
+        # Try direct mapping first
+        if log_name in self.sample_name_map:
+            return self.sample_name_map[log_name]
+        
+        # Extract sample name from common log file patterns
+        patterns = [
+            (r"^bowtie2_(.+?)\.\d+\.err?$", 1),
+            (r"^bowtie2_(.+?)\.err?$", 1),
+            (r"^bwa_mem2_(.+?)\.\d+\.err?$", 1),
+            (r"^bwa_mem2_(.+?)\.err?$", 1),
+            (r"^sambamba_markdup_(.+?)(?:\.log)?$", 1),
+            (r"^sambamba_sort_(.+?)\.\d+(?:\.log)?$", 1),
+            (r"^samtools_merge_(.+?)(?:\.log)?$", 1),
+            (r"^samtools_index_(.+?)(?:\.log)?$", 1),
+        ]
+        
+        for pattern, group_idx in patterns:
+            match = re.match(pattern, log_name)
+            if match:
+                extracted = match.group(group_idx)
+                # Try to find canonical name for extracted sample
+                if extracted in self.sample_name_map:
+                    return self.sample_name_map[extracted]
+                # Check if it's already a canonical sample name
+                if extracted in self.sample_sas_dict:
+                    return extracted
+                return extracted
+        
+        # Handle fastp concatenated names like "sample1_sample2"
+        if "_" in log_name and not any(log_name.startswith(prefix) for prefix in ["bowtie2_", "bwa_mem2_", "sambamba_", "samtools_"]):
+            parts = log_name.split("_")
+            if len(parts) >= 2:
+                # Try to find common prefix
+                first_part = "_".join(parts[:len(parts)//2])
+                second_part = "_".join(parts[len(parts)//2:])
+                first_clean = re.sub(r'\d+$', '', first_part)
+                second_clean = re.sub(r'\d+$', '', second_part)
+                if first_clean == second_clean and first_clean in self.sample_sas_dict:
+                    return first_clean
+                # Try checking if any part matches a known sample
+                for i in range(1, len(parts) + 1):
+                    candidate = "_".join(parts[:i])
+                    candidate_clean = re.sub(r'\d+$', '', candidate)
+                    if candidate_clean in self.sample_sas_dict:
+                        return candidate_clean
+        
+        # Return original if no normalization found
+        return log_name
+    
     def parse_cuttag_stats(self, fhandle):
         data = {}
         for line in fhandle.splitlines():

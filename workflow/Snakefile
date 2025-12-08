@@ -261,8 +261,8 @@ rule all:
     input:
         #expand(f"{DATA_DIR}/counts/{{mark}}_counts.tsv", mark=marks_noigg),
         #expand(f"{DATA_DIR}/counts/{{mark}}_consensus.bed", mark=marks_noigg),
-        expand([f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.bam",
-                f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.fraglen.tsv",
+        expand([f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam",
+                f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.fraglen.tsv",
                 f"{DATA_DIR}/Important_processed/Track/tracks/{{sample}}.bw",
                 f"{DATA_DIR}/Report/preseq/lcextrap_{{sample}}.txt",
                 ], sample=samps),

@@ -3,8 +3,8 @@ DATA_DIR = config["output_base_dir"].rstrip("/")
 
 rule tracks:
     input:
-        bam = rules.markdup.output,
-        bai = rules.index.output,
+        bam = rules.markdup.output.bam,
+        bai = rules.markdup.output.bai,
     output:
         f"{DATA_DIR}/Important_processed/Track/tracks/{{sample}}.bw"
     conda:
@@ -31,7 +31,7 @@ rule fraglength:
     input:
         rules.markdup.output
     output:
-        f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.fraglen.tsv"
+        f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.fraglen.tsv"
     conda:
         "../envs/align.yml"
     threads: 1
@@ -42,7 +42,7 @@ rule fraglength:
 
 rule fraglength_plot:
     input:
-        expand(f"{DATA_DIR}/Important_processed/Bam/markd/{{sample}}.sorted.markd.fraglen.tsv", sample = samps)
+        expand(f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.fraglen.tsv", sample = samps)
     output:
         f"{DATA_DIR}/Report/fraglen.html"
     container: None

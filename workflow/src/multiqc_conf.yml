@@ -1,2 +1,18 @@
 disable_modules:
     - gopeaks
+
+# Sample annotation file for sample name normalization
+annotation: /storage/zhangkaiLab/hanlitian/macrophage/script/cuttag_sm/config/samplesheet_test.csv
+
+sample_names_replace:
+    # Target: "P6-1_test"
+    
+    # remove the suffix from the first one
+    "1_P6-1_test2": ""  
+    
+    # remove the prefix/suffix from the bowtie log
+    "bowtie2_": ""
+    ".1.err": ""
+    
+    # remove the prefix from the sambamba log
+    "sambamba_markdup_": ""
