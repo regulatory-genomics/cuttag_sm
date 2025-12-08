@@ -43,10 +43,10 @@ if config.get("aligner", "bowtie2") == "bowtie2":
             bowtie2_input = lambda w, input: f"-1 {','.join(input.r1)} -2 {','.join(input.r2)}"
         shell:
             (
-                "bowtie2 --local --very-sensitive-local "
-                "--no-unal --no-mixed --threads {threads} "
-                "--no-discordant --phred33 "
-                "-I 10 -X 700 -x {config[GENOME]} "
+            "bowtie2 --local --very-sensitive-local "
+            "--no-unal --no-mixed --threads {threads} "
+            "--no-discordant --phred33 "
+            "-I 10 -X 700 -x {config[GENOME]} "
                 "{params.bowtie2_input} 2>{log.err} | "
                 "samtools view -@ {threads} -Sbh - | "
                 "samtools sort -@ {threads} -T {DATA_DIR}/middle_file/aligned/{wildcards.sample}.tmp -o {output.bam} -"
@@ -74,7 +74,7 @@ else:
         threads: 8
         shell:
             (
-                "bwa-mem2 mem {params.bwa_args} -t {threads} -R \"{params.rg}\" {params.ref} "
+            "bwa-mem2 mem {params.bwa_args} -t {threads} -R \"{params.rg}\" {params.ref} "
                 "{params.bwa_input} 2>{log.err} | "
                 "samtools view -@ {threads} -Sbh - | "
                 "samtools sort -@ {threads} -T {DATA_DIR}/middle_file/aligned/{wildcards.sample}.tmp -o {output.bam} -"
@@ -87,7 +87,6 @@ rule markdup:
         rules.align.output.bam
     output:
         bam = f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam",
-        bai = f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam.bai"
     conda:
         "../envs/sambamba.yml"
     singularity:
@@ -97,6 +96,17 @@ rule markdup:
         f"{DATA_DIR}/logs/sambamba_markdup_{{sample}}.log"
     shell:
         (
-            f"sambamba markdup --tmpdir={DATA_DIR}/Important_processed/Bam -t {{threads}} {{input}} {{output.bam}} > {{log}} 2>&1 && "
-            "sambamba index -t {threads} {output.bam} > /dev/null 2>&1"
+            f"sambamba markdup --tmpdir={DATA_DIR}/Important_processed/Bam -t {{threads}} {{input}} {{output.bam}} > {{log}} 2>&1"
         )
+
+# Build BAM index with samtools (more broadly compatible with downstream tools)
+rule index_bam:
+    input:
+        rules.markdup.output.bam
+    output:
+        bai = f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam.bai"
+    conda:
+        "../envs/align.yml"
+    threads: 2
+    shell:
+        "samtools index -@ {threads} {input} {output}"

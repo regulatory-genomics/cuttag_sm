@@ -5,14 +5,29 @@ disable_modules:
 annotation: /storage/zhangkaiLab/hanlitian/macrophage/script/cuttag_sm/config/samplesheet_test.csv
 
 sample_names_replace:
-    # Target: "P6-1_test"
-    
-    # remove the suffix from the first one
-    "1_P6-1_test2": ""  
-    
     # remove the prefix/suffix from the bowtie log
     "bowtie2_": ""
-    ".1.err": ""
+    ".err": ""
+    ".1_fastp": ""
     
     # remove the prefix from the sambamba log
     "sambamba_markdup_": ""
+
+fastp:
+    s_name_filenames: true
+
+
+custom_data:
+  deeptools_enrichment:
+    file_format: "tsv"
+    section_name: "DeepTools Enrichment"
+    description: "Percents in features"
+    plot_type: "table"
+    pconfig:
+      headers:
+        # pick the column(s) you want in General Stats
+        Percent_in_features:
+          title: "Percents"
+          description: "Percents in features"
+          format: "{:.2f}"
+    fn: "deeptools_enrichment_plot_Percents_in_features.txt"

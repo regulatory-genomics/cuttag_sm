@@ -4,7 +4,7 @@ DATA_DIR = config["output_base_dir"].rstrip("/")
 rule tracks:
     input:
         bam = rules.markdup.output.bam,
-        bai = rules.markdup.output.bai,
+        bai = rules.index_bam.output.bai,
     output:
         f"{DATA_DIR}/Important_processed/Track/tracks/{{sample}}.bw"
     conda:

@@ -38,7 +38,7 @@ def cuttag_report_execution_start():
             config.cuttag_report_version
         )
     )
-    
+
     # Load annotation path from config files if not already set
     # MultiQC loads YAML config but doesn't always set custom keys as attributes
     if not hasattr(config, "annotation") or config.annotation is None:
@@ -322,6 +322,12 @@ def _load_sample_mapping():
                 sample_mapping[f"bowtie2_{sample_name}"] = sample_name
                 sample_mapping[f"bwa_mem2_{sample_name}"] = sample_name
                 sample_mapping[f"sambamba_sort_{sample_name}"] = sample_name
+                
+                # fastp per-run outputs (json/html filenames become s_name)
+                sample_mapping[f"{sample_name}.{run}_fastp"] = sample_name
+                sample_mapping[f"{sample_name}.{run}.fastp"] = sample_name
+                # common truncated fastp names (run suffix only)
+                sample_mapping[f"{sample_name}.{run}"] = sample_name
         
         # After loading all samples, create mappings for fastp concatenated patterns
         # Group samples by their base name (without run number)
@@ -356,13 +362,29 @@ def cuttag_report_after_modules():
     Hook that runs after all modules are initialized.
     Normalize sample names in general stats to merge log-derived names with canonical names.
     """
+    log.info("=" * 80)
+    log.info("CUTTAG REPORT: after_modules hook called")
+    log.info("=" * 80)
+    
     # Halt execution if we've disabled the plugin
     if config.kwargs.get("disable_cuttag_report", False):
+        log.info("Plugin disabled, returning")
         return None
     
     try:
         from multiqc.utils import report
+        from collections import OrderedDict
         
+        log.info("About to inject DeepTools enrichment data...")
+        # Optional: ingest deeptools enrichment percent into general stats
+        _inject_deeptools_enrichment(report)
+        log.info("Finished injecting DeepTools enrichment data")
+        
+        log.info("About to add calculated sambamba metrics...")
+        # Add calculated metrics from sambamba markdup
+        _add_sambamba_calculated_metrics(report)
+        log.info("Finished adding calculated sambamba metrics")
+
         # Load sample name mapping
         sample_mapping = _load_sample_mapping()
         if not sample_mapping:
@@ -585,7 +607,270 @@ def cuttag_report_after_modules():
     except Exception as exc:
         import traceback
         log.error(f"Error during sample name normalization: {exc}")
-        log.debug(traceback.format_exc())
+
+
+def _inject_deeptools_enrichment(report):
+    """
+    Parse raw DeepTools plotEnrichment output (frip_*.tsv) and add to general stats.
+    Expects TSV with columns: file, featureType, percent, featureReadCount, totalReadCount
+    """
+    from collections import OrderedDict
+    
+    # Search for frip_*.tsv files in analysis directories
+    frip_files = []
+    search_dirs = []
+    
+    # Add analysis_dir from config (might be a list or a string)
+    if hasattr(config, "analysis_dir") and config.analysis_dir:
+        analysis_dirs = config.analysis_dir if isinstance(config.analysis_dir, list) else [config.analysis_dir]
+        for adir in analysis_dirs:
+            if adir:
+                search_dirs.extend([
+                    adir,
+                    os.path.join(adir, "plotEnrichment"),
+                    os.path.join(adir, "Report", "plotEnrichment"),
+                ])
+    
+    # Add output_dir from config  
+    if hasattr(config, "output_dir") and config.output_dir:
+        search_dirs.extend([
+            config.output_dir,
+            os.path.join(config.output_dir, "plotEnrichment"),
+        ])
+    
+    # Add current working directory
+    search_dirs.extend([".", "plotEnrichment", "Report/plotEnrichment"])
+    
+    log.debug(f"Searching for frip_*.tsv files in: {search_dirs}")
+    
+    # Search for frip_*.tsv files
+    for search_dir in search_dirs:
+        if not os.path.isdir(search_dir):
+            continue
+        try:
+            for fname in os.listdir(search_dir):
+                if fname.startswith("frip_") and fname.endswith(".tsv"):
+                    frip_files.append(os.path.join(search_dir, fname))
+        except OSError:
+            continue
+    
+    if not frip_files:
+        log.debug("No frip_*.tsv files found in search paths")
+        return
+    
+    log.info(f"Found {len(frip_files)} FRiP files: {frip_files}")
+
+    # Parse each FRiP file
+    data = {}
+    for frip_file in frip_files:
+        try:
+            with open(frip_file, "r") as fh:
+                lines = [l.strip() for l in fh.readlines() if l.strip()]
+            
+            if len(lines) < 2:
+                log.debug(f"Not enough lines in {frip_file}")
+                continue
+            
+            # Parse header to find column indices
+            header = lines[0].split("\t")
+            log.debug(f"Header in {frip_file}: {header}")
+            
+            # Expected columns: file, featureType, percent, featureReadCount, totalReadCount
+            try:
+                percent_idx = header.index("percent")
+            except ValueError:
+                log.warning(f"No 'percent' column in {frip_file}")
+                continue
+            
+            # Parse data lines
+            for line in lines[1:]:
+                parts = line.split("\t")
+                if len(parts) <= percent_idx:
+                    log.debug(f"Skipping line with insufficient columns: {line}")
+                    continue
+                
+                # Extract sample name from filename (frip_SAMPLE.tsv)
+                basename = os.path.basename(frip_file)
+                sample = basename.replace("frip_", "").replace(".tsv", "")
+                
+                # Get percent value
+                try:
+                    val = float(parts[percent_idx])
+                    data[sample] = {"deeptools_enrichment_pct": val}
+                    log.info(f"Added FRiP for sample '{sample}': {val}%")
+                except ValueError:
+                    log.debug(f"Could not convert '{parts[percent_idx]}' to float")
+                    continue
+                    
+        except Exception as exc:
+            log.warning(f"Could not parse {frip_file}: {exc}")
+            import traceback
+            log.debug(traceback.format_exc())
+            continue
+
+    if not data:
+        log.debug("No data extracted from FRiP files")
+        return
+    
+    log.info(f"Successfully parsed FRiP data for {len(data)} samples")
+
+    # ensure structures exist
+    if not hasattr(report, "general_stats_data") or report.general_stats_data is None:
+        report.general_stats_data = {}
+    if not hasattr(report, "general_stats_headers") or report.general_stats_headers is None:
+        report.general_stats_headers = {}
+
+    module_name = "deeptools_enrichment"
+    # Insert data
+    report.general_stats_data[module_name] = data
+    report.general_stats_headers[module_name] = OrderedDict()
+    report.general_stats_headers[module_name]["deeptools_enrichment_pct"] = {
+        "title": "FRiP %",
+        "description": "DeepTools percent in features",
+        "format": "{:.2f}",
+        "scale": "Blues",
+    }
+
+
+def _add_sambamba_calculated_metrics(report):
+    """
+    Add calculated metrics from sambamba markdup data:
+    - nrf_sm: Non-Redundant Fraction = 100 - duplicate_rate
+    - duplicate_read: Number of duplicate reads (already in data)
+    - unique_read: (sorted_end_pairs * 2 - duplicate_reads) / 2
+    """
+    from collections import OrderedDict
+    
+    # Find the Sambamba module in general_stats_data
+    if not hasattr(report, "general_stats_data") or not report.general_stats_data:
+        log.debug("No general_stats_data found for sambamba metrics")
+        return
+    
+    sambamba_module_name = None
+    sambamba_data = None
+    
+    # Search for Sambamba module
+    if isinstance(report.general_stats_data, list):
+        for module_dict in report.general_stats_data:
+            for module_name, module_data in module_dict.items():
+                if "sambamba" in module_name.lower() or "markdup" in module_name.lower():
+                    sambamba_module_name = module_name
+                    sambamba_data = module_data
+                    break
+            if sambamba_data:
+                break
+    else:
+        for module_name, module_data in report.general_stats_data.items():
+            if "sambamba" in module_name.lower() or "markdup" in module_name.lower():
+                sambamba_module_name = module_name
+                sambamba_data = module_data
+                break
+    
+    if not sambamba_data:
+        log.debug("Sambamba module not found in general_stats_data")
+        return
+    
+    log.info(f"Found Sambamba module: {sambamba_module_name}")
+    log.debug(f"Sambamba data samples: {list(sambamba_data.keys())}")
+    
+    # Process each sample
+    for sample_name, sample_data in sambamba_data.items():
+        log.debug(f"Processing sample {sample_name}, data type: {type(sample_data)}")
+        
+        # Handle both dict and list formats (MultiQC version differences)
+        if isinstance(sample_data, list):
+            log.debug(f"Sample {sample_name} list length: {len(sample_data)}")
+            if len(sample_data) > 0:
+                log.debug(f"First element type: {type(sample_data[0])}")
+                # Check if it's an InputRow object with a data attribute
+                if hasattr(sample_data[0], 'data'):
+                    sample_dict = sample_data[0].data
+                    log.debug(f"Sample {sample_name} using InputRow.data with keys: {list(sample_dict.keys())}")
+                elif isinstance(sample_data[0], dict):
+                    # Use the first dict in the list
+                    sample_dict = sample_data[0]
+                    log.debug(f"Sample {sample_name} is a list, using first dict with keys: {list(sample_dict.keys())}")
+                else:
+                    log.debug(f"Skipping {sample_name} - list format not recognized")
+                    continue
+            else:
+                log.debug(f"Skipping {sample_name} - empty list")
+                continue
+        elif isinstance(sample_data, dict):
+            sample_dict = sample_data
+            log.debug(f"Sample {sample_name} keys: {list(sample_dict.keys())}")
+        else:
+            log.debug(f"Skipping {sample_name} - not a dict or list")
+            continue
+        
+        # Calculate nrf_sm = 100 - duplicate_rate
+        if "duplicate_rate" in sample_dict:
+            try:
+                duplicate_rate = float(sample_dict["duplicate_rate"])
+                nrf_sm = 100.0 - duplicate_rate
+                sample_dict["nrf_sm"] = nrf_sm
+                log.info(f"Added nrf_sm for {sample_name}: {nrf_sm:.2f}%")
+            except (ValueError, TypeError) as e:
+                log.debug(f"Could not calculate nrf_sm for {sample_name}: {e}")
+        else:
+            log.debug(f"No duplicate_rate found for {sample_name}")
+        
+        # Add duplicate_reads to general stats (if not already there)
+        if "duplicate_reads" in sample_dict and "duplicate_read" not in sample_dict:
+            sample_dict["duplicate_read"] = sample_dict["duplicate_reads"]
+            log.info(f"Added duplicate_read for {sample_name}: {sample_dict['duplicate_reads']}")
+        
+        # Calculate unique_read = (sorted_end_pairs * 2 - duplicate_reads) / 2
+        if "sorted_end_pairs" in sample_dict and "duplicate_reads" in sample_dict:
+            try:
+                sorted_end_pairs = int(sample_dict["sorted_end_pairs"])
+                duplicate_reads = int(sample_dict["duplicate_reads"])
+                unique_read = (sorted_end_pairs * 2 - duplicate_reads) / 2
+                sample_dict["unique_read"] = unique_read
+                log.info(f"Added unique_read for {sample_name}: {unique_read:.0f}")
+            except (ValueError, TypeError) as e:
+                log.debug(f"Could not calculate unique_read for {sample_name}: {e}")
+        else:
+            log.debug(f"Missing sorted_end_pairs or duplicate_reads for {sample_name}")
+    
+    # Add headers for the new metrics
+    if not hasattr(report, "general_stats_headers") or report.general_stats_headers is None:
+        report.general_stats_headers = {}
+    
+    if sambamba_module_name not in report.general_stats_headers:
+        report.general_stats_headers[sambamba_module_name] = OrderedDict()
+    
+    # Add header for nrf_sm
+    if "nrf_sm" not in report.general_stats_headers[sambamba_module_name]:
+        report.general_stats_headers[sambamba_module_name]["nrf_sm"] = {
+            "title": "NRF",
+            "description": "Non-Redundant Fraction (100 - duplicate rate)",
+            "format": "{:.2f}",
+            "suffix": "%",
+            "scale": "RdYlGn",
+            "min": 0,
+            "max": 100,
+        }
+    
+    # Add header for duplicate_read
+    if "duplicate_read" not in report.general_stats_headers[sambamba_module_name]:
+        report.general_stats_headers[sambamba_module_name]["duplicate_read"] = {
+            "title": "Dup Reads",
+            "description": "Number of duplicate reads",
+            "format": "{:,.0f}",
+            "scale": "Reds",
+        }
+    
+    # Add header for unique_read
+    if "unique_read" not in report.general_stats_headers[sambamba_module_name]:
+        report.general_stats_headers[sambamba_module_name]["unique_read"] = {
+            "title": "Unique Reads",
+            "description": "Number of unique reads: (sorted_end_pairs * 2 - duplicate_reads) / 2",
+            "format": "{:,.0f}",
+            "scale": "Greens",
+        }
+    
+    log.info(f"Successfully added calculated sambamba metrics")
 
 
 def cuttag_report_before_report_generation():

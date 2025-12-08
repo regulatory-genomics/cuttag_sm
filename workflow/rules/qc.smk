@@ -2,8 +2,8 @@
 DATA_DIR = config["output_base_dir"].rstrip("/")
 rule plotFinger:
     input:
-        f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam",
-        f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam.bai"
+        rules.markdup.output.bam,
+        rules.index_bam.output.bai
     output:
         f"{DATA_DIR}/Report/dtools/fingerprint_{{sample}}.tsv"
     conda:
@@ -73,15 +73,10 @@ rule multiqc:
     shell:
         """
         export LC_ALL=C.UTF-8; export LANG=C.UTF-8;
-        multiqc {DATA_DIR} \
-          -f -c workflow/src/multiqc_conf.yml -o {DATA_DIR}/Report/multiqc \
-          --cl-config "annotation: {SAMPLE_SHEET}" \
-          --ignore {DATA_DIR}/downtream_res/Homer \
-          --ignore {DATA_DIR}/middle_file \
-          --ignore {DATA_DIR}/Important_processed/Bam \
-          --ignore {DATA_DIR}/Important_processed/Track \
-          --ignore {DATA_DIR}/Important_processed/Peaks \
-          > {log} 2>&1
+        multiqc {DATA_DIR}/Report/ {DATA_DIR}/logs \
+            -f -c workflow/src/multiqc_conf.yml -o {DATA_DIR}/Report/multiqc \
+            --cl-config "annotation: {SAMPLE_SHEET}" \
+            > {log} 2>&1
         """
 
 

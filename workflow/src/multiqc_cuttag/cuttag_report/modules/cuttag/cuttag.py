@@ -144,7 +144,7 @@ class MultiqcModule(BaseMultiqcModule):
         
         # Return original if no normalization found
         return log_name
-    
+
     def parse_cuttag_stats(self, fhandle):
         data = {}
         for line in fhandle.splitlines():
