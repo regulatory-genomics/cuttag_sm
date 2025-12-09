@@ -295,7 +295,7 @@ rule all:
         # quality control plots
         f"{DATA_DIR}/Report/fraglen.html",
         f"{DATA_DIR}/Report/plotEnrichment/frip.html",
-        f"{DATA_DIR}/Report/multiqc/peakcount.txt",
+        f"{DATA_DIR}/Report/peak_stat/peakcount.txt",
         # Genomic coverage report
         f"{DATA_DIR}/Report/coverage_report.tsv",
         

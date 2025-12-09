@@ -20,8 +20,8 @@ rule frip_plot:
         expand(f"{DATA_DIR}/Report/plotEnrichment/frip_{{sample}}.tsv", sample = sample_noigg)
     output:
         f"{DATA_DIR}/Report/plotEnrichment/frip.html"
-    #conda:
-    #    "../envs/plot_report.yml"
+    conda:
+        "../envs/plot_report.yml"
     script:
         "../src/frip_plot.py"
 
@@ -88,15 +88,21 @@ rule count_peaks:
     input:
         get_macs2_peak_files(DATA_DIR, config["IGG"])
     output:
-        f"{DATA_DIR}/Report/multiqc/peakcount.txt"
+        f"{DATA_DIR}/Report/peak_stat/peakcount.txt"
+    log:
+        f"{DATA_DIR}/logs/count_peaks.log"
     shell:
         """
+        echo "Input files: {input}" > {log}
+        echo "Number of input files: $(echo '{input}' | wc -w)" >> {log}
+        
         if [ -z "{input}" ]; then
+            echo "No input files, creating empty output" >> {log}
             : > {output}
         else
-            wc -l {input} | \
-            sed '$d' | \
-            sed -E 's|.*/macs2_broad_||; s|.*/macs2_narrow_||; s/_peaks.broadPeak//; s/_peaks.narrowPeak//' | \
-            awk '{{print $2, $1}}' > {output}
+            echo "Processing input files" >> {log}
+            wc -l {input} \
+            | awk '$2 != "total" {{file=$2; gsub(\".*/macs2_(broad|narrow)_\",\"\",file); gsub(\"_peaks\\\\.(broadPeak|narrowPeak)\",\"\",file); print file, $1}}' \
+            > {output}
         fi
         """

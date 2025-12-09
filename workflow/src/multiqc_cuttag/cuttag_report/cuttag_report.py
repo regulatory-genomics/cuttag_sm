@@ -229,6 +229,7 @@ def cuttag_report_after_modules():
         
         # Inject custom metrics
         _inject_deeptools_enrichment(report)
+        _inject_peak_counts(report)
         _add_sambamba_calculated_metrics(report)
         
         # Normalize sample names
@@ -342,12 +343,102 @@ def _find_frip_files():
     return frip_files
 
 
+def _inject_peak_counts(report):
+    """
+    Parse peakcount.txt and add peak count to general stats.
+    Expected format per line: "<sample> <count>"
+    """
+    peak_files = _find_peakcount_files()
+    if not peak_files:
+        log.debug("No peakcount.txt files found")
+        return
+    
+    data = {}
+    for peak_file in peak_files:
+        try:
+            with open(peak_file, "r") as fh:
+                for line in fh:
+                    if not line.strip():
+                        continue
+                    parts = line.strip().split()
+                    if len(parts) < 2:
+                        continue
+                    sample = parts[0]
+                    try:
+                        count_val = float(parts[1])
+                    except ValueError:
+                        continue
+                    data[sample] = {"peak_count": count_val}
+                    log.info(f"Added peak count for sample '{sample}' from {peak_file}: {count_val}")
+        except Exception as exc:
+            log.warning(f"Could not parse {peak_file}: {exc}")
+    
+    if not data:
+        return
+    
+    _ensure_report_structures(report)
+    module_name = "peakcounts"
+    report.general_stats_data[module_name] = data
+    report.general_stats_headers[module_name] = OrderedDict()
+    report.general_stats_headers[module_name]["peak_count"] = {
+        "title": "Peaks",
+        "description": "Number of called peaks",
+        "format": "{:,.0f}",
+        "scale": "Greens",
+    }
+
+
+def _find_peakcount_files():
+    """Search for peakcount.txt in common output locations."""
+    search_dirs = []
+    
+    # Analysis directories
+    if hasattr(config, "analysis_dir") and config.analysis_dir:
+        analysis_dirs = config.analysis_dir if isinstance(config.analysis_dir, list) else [config.analysis_dir]
+        for adir in analysis_dirs:
+            if adir:
+                search_dirs.extend([
+                    adir,
+                    os.path.join(adir, "peak_stat"),
+                    os.path.join(adir, "Report", "peak_stat"),
+                ])
+    
+    # Output directory
+    if hasattr(config, "output_dir") and config.output_dir:
+        search_dirs.extend([
+            config.output_dir,
+            os.path.join(config.output_dir, "peak_stat"),
+            os.path.join(config.output_dir, "Report", "peak_stat"),
+        ])
+    
+    # Current working directory fallback
+    search_dirs.extend([".", "peak_stat", "Report/peak_stat"])
+    
+    peak_files = []
+    for search_dir in search_dirs:
+        if not os.path.isdir(search_dir):
+            continue
+        try:
+            for fname in os.listdir(search_dir):
+                if fname.endswith("peakcount.txt"):
+                    peak_files.append(os.path.join(search_dir, fname))
+            # Also check explicit path peak_stat/peakcount.txt
+            explicit = os.path.join(search_dir, "peakcount.txt")
+            if os.path.isfile(explicit):
+                peak_files.append(explicit)
+        except OSError:
+            continue
+    
+    return peak_files
+
+
 def _add_sambamba_calculated_metrics(report):
     """
     Add calculated metrics from sambamba markdup data:
     - nrf_sm: Non-Redundant Fraction = 100 - duplicate_rate
     - duplicate_read: Number of duplicate reads
     - unique_read: (sorted_end_pairs * 2 - duplicate_reads) / 2
+    - sorted_end_pairs: Number of paired-end fragments seen by Sambamba
     """
     # Find Sambamba module
     sambamba_data = _find_module_data(report, ["sambamba", "markdup"])
@@ -389,6 +480,13 @@ def _add_sambamba_calculated_metrics(report):
                 log.info(f"Added unique_read for {sample_name}: {unique_read:.0f}")
             except (ValueError, TypeError) as e:
                 log.debug(f"Could not calculate unique_read for {sample_name}: {e}")
+        
+        # Ensure sorted_end_pairs is retained (convert to int if present)
+        if "sorted_end_pairs" in sample_dict:
+            try:
+                sample_dict["total_reads"] = int(sample_dict["sorted_end_pairs"])
+            except (ValueError, TypeError):
+                pass
     
     # Add headers for new metrics
     _add_sambamba_headers(report, module_name)
@@ -455,6 +553,12 @@ def _add_sambamba_headers(report, module_name):
             "description": "Number of unique reads: (sorted_end_pairs * 2 - duplicate_reads) / 2",
             "format": "{:,.0f}",
             "scale": "Greens",
+        },
+        "sorted_end_pairs": {
+            "title": "Sorted End Pairs",
+            "description": "Paired-end fragments processed by Sambamba markdup",
+            "format": "{:,.0f}",
+            "scale": "Blues",
         },
     }
     
