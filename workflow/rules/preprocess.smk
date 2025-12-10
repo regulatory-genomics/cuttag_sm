@@ -20,5 +20,7 @@ if config["TRIM_ADAPTERS"]:
         singularity:
             os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "fastp.sif")
         threads: 4
+        resources:
+            runtime = 120,
         shell:
             "fastp -i {input.r1} -I {input.r2} -o {output.r1} -O {output.r2} --detect_adapter_for_pe --trim_poly_g --adapter_fasta {params.adapter_fasta_file} --thread {threads} -j {output.report_json} -h {output.report_html}"

@@ -13,6 +13,9 @@ rule callpeaks:
     log:
         f"{DATA_DIR}/logs/{{sample}}_gopeaks.json"
     threads: 4
+    resources:
+        mem_mb=100000,
+        runtime = 60,
     params:
         igg = get_igg,
         params = callpeaks_params
@@ -37,6 +40,9 @@ rule callpeaks_macs2_broad:
             ) + " --nomodel --keep-dup all --broad --broad-cutoff 0.1 -q 0.01"
         ))
     threads: 4
+    resources:
+        mem_mb=32000,
+        runtime = 60,
     wrapper:
         "v2.9.1/bio/macs2/callpeak"
 
@@ -58,6 +64,9 @@ rule callpeaks_macs2_narrow:
             ) + " --nomodel --keep-dup all -q 0.01"
         ))
     threads: 4
+    resources:
+        mem_mb=32000,
+        runtime = 60,
     wrapper:
         "v2.9.1/bio/macs2/callpeak"
 
@@ -155,6 +164,9 @@ rule frip:
         "../envs/dtools.yml"
     singularity:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "dtools.sif")
+    resources:
+        mem_mb=16000,
+        runtime = 120,
     log:
         f"{DATA_DIR}/logs/plotEnrichment_{{sample}}.log"
     shell:
@@ -174,6 +186,9 @@ rule genomic_coverage:
         "../envs/bedtools.yml"
     singularity:
         "docker://staphb/bedtools:2.30.0"
+    resources:
+        mem_mb=32000,
+        runtime = 120,
     log:
         f"{DATA_DIR}/logs/coverage_{{sample}}.log"
     shell:

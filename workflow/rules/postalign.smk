@@ -11,6 +11,9 @@ rule tracks:
         "../envs/dtools.yml"
     singularity:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "dtools.sif")
+    resources:
+        mem_mb=32000,
+        runtime = 200,
     threads: 8
     shell:
         "bamCoverage -b {input[0]} -o {output} --binSize 10 --smoothLength 50 --normalizeUsing CPM -p {threads} "
@@ -22,6 +25,9 @@ rule merge_bw:
         f"{DATA_DIR}/mergebw/{{mark_condition}}.bw"
     conda:
         "../envs/mergebw.yml"
+    resources:
+        mem_mb=32000,
+        runtime = 300,
     singularity:
         os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "mergebw.sif")
     shell:
