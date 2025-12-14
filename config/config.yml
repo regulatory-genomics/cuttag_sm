@@ -21,7 +21,6 @@ project_info:
         peaks: "important_processed/peaks"
       downstream_res:
         homer: "downstream_res/homer"
-        diffbind: "downstream_res/diffbind"
         deseq2: "downstream_res/deseq2"
         counts: "downstream_res/counts"
       middle_file:
@@ -50,9 +49,21 @@ pipeline_steps:
     use_igg: false
     igg_token: "IgG"
     n_intersects: 2
-  diffbind:
-    padj_cutoff: 0.05
-
+  peak_qval:
+    CTCF: 0.0001
+    H3K4me1: 0.001
+    H3K4me3: 0.001
+    H3K4me2: 0.001
+    PU.1: 0.000001
+    H3K27ac: 0.001
+    GATA: 0.0001
+  broad_marks:
+    - H3K27me3
+    - H3K9me3
+  broad_params:
+    slocal: 10000
+    max-gap: 1000
+    broad-cutoff: 0.01
 reference:
   genome_index: "{database_dir}/hg38/indices_for_Bowtie2/hg38"
   genome_fasta: "{database_dir}/hg38/hg38.fa"

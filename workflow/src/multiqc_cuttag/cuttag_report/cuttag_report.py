@@ -230,6 +230,7 @@ def cuttag_report_after_modules():
         # Inject custom metrics
         _inject_deeptools_enrichment(report)
         _inject_peak_counts(report)
+        _inject_genomic_coverage(report)
         _add_sambamba_calculated_metrics(report)
         
         # Normalize sample names
@@ -430,6 +431,149 @@ def _find_peakcount_files():
             continue
     
     return peak_files
+
+
+def _inject_genomic_coverage(report):
+    """
+    Parse coverage_report.tsv and add genomic coverage metrics to general stats.
+    Expected format: TSV with header "Sample\tCoverage_Percent\tCovered_Bases\tTotal_Genome_Size"
+    """
+    coverage_files = _find_coverage_files()
+    if not coverage_files:
+        log.debug("No coverage_report.tsv files found")
+        return
+    
+    data = {}
+    for coverage_file in coverage_files:
+        try:
+            with open(coverage_file, "r") as fh:
+                reader = csv.DictReader(fh, delimiter="\t")
+                for row in reader:
+                    sample = row.get("Sample", "").strip()
+                    if not sample:
+                        continue
+                    
+                    # Parse Coverage_Percent
+                    coverage_pct = row.get("Coverage_Percent", "").strip()
+                    if coverage_pct:
+                        try:
+                            coverage_pct_val = float(coverage_pct)
+                            if sample not in data:
+                                data[sample] = {}
+                            data[sample]["genomic_coverage_pct"] = coverage_pct_val
+                            log.info(f"Added genomic coverage % for sample '{sample}': {coverage_pct_val}%")
+                        except ValueError:
+                            continue
+                    
+                    # Parse Covered_Bases (optional, for reference)
+                    covered_bases = row.get("Covered_Bases", "").strip()
+                    if covered_bases:
+                        try:
+                            covered_bases_val = int(covered_bases)
+                            if sample not in data:
+                                data[sample] = {}
+                            data[sample]["covered_bases"] = covered_bases_val
+                        except ValueError:
+                            continue
+                    
+                    # Parse Total_Genome_Size (optional, for reference)
+                    total_genome = row.get("Total_Genome_Size", "").strip()
+                    if total_genome:
+                        try:
+                            total_genome_val = int(total_genome)
+                            if sample not in data:
+                                data[sample] = {}
+                            data[sample]["total_genome_size"] = total_genome_val
+                        except ValueError:
+                            continue
+        except Exception as exc:
+            log.warning(f"Could not parse {coverage_file}: {exc}")
+    
+    if not data:
+        return
+    
+    _ensure_report_structures(report)
+    module_name = "genomic_coverage"
+    report.general_stats_data[module_name] = data
+    report.general_stats_headers[module_name] = OrderedDict()
+    report.general_stats_headers[module_name]["genomic_coverage_pct"] = {
+        "title": "Genome Cov %",
+        "description": "Percentage of genome covered by peaks",
+        "format": "{:.2f}",
+        "suffix": "%",
+        "scale": "Blues",
+        "min": 0,
+        "max": 100,
+    }
+    # Optionally add covered_bases and total_genome_size (hidden by default)
+    report.general_stats_headers[module_name]["covered_bases"] = {
+        "title": "Covered Bases",
+        "description": "Number of bases covered by peaks",
+        "format": "{:,.0f}",
+        "scale": "Greens",
+        "hidden": True,
+    }
+    report.general_stats_headers[module_name]["total_genome_size"] = {
+        "title": "Genome Size",
+        "description": "Total genome size in bases",
+        "format": "{:,.0f}",
+        "scale": "Blues",
+        "hidden": True,
+    }
+
+
+def _find_coverage_files():
+    """Search for coverage_report.tsv in common output locations."""
+    search_dirs = []
+    
+    # Analysis directories
+    if hasattr(config, "analysis_dir") and config.analysis_dir:
+        analysis_dirs = config.analysis_dir if isinstance(config.analysis_dir, list) else [config.analysis_dir]
+        for adir in analysis_dirs:
+            if adir:
+                search_dirs.extend([
+                    adir,
+                    os.path.join(adir, "peak_stat"),
+                    os.path.join(adir, "Report", "peak_stat"),
+                    os.path.join(adir, "Report", "peak_stat", "coverage"),
+                    os.path.join(adir, "Important_processed", "Peaks", "coverage"),
+                ])
+    
+    # Output directory
+    if hasattr(config, "output_dir") and config.output_dir:
+        search_dirs.extend([
+            config.output_dir,
+            os.path.join(config.output_dir, "peak_stat"),
+            os.path.join(config.output_dir, "Report", "peak_stat"),
+            os.path.join(config.output_dir, "Report", "peak_stat", "coverage"),
+            os.path.join(config.output_dir, "Important_processed", "Peaks", "coverage"),
+        ])
+    
+    # Current working directory fallback
+    search_dirs.extend([
+        ".",
+        "peak_stat",
+        "Report/peak_stat",
+        "Report/peak_stat/coverage",
+        "Important_processed/Peaks/coverage",
+    ])
+    
+    coverage_files = []
+    for search_dir in search_dirs:
+        # Check if it's a directory
+        if os.path.isdir(search_dir):
+            try:
+                for fname in os.listdir(search_dir):
+                    if fname.endswith("coverage_report.tsv") or fname == "coverage_report.tsv":
+                        coverage_files.append(os.path.join(search_dir, fname))
+            except OSError:
+                continue
+        # Also check if it's a file directly
+        elif os.path.isfile(search_dir) and search_dir.endswith("coverage_report.tsv"):
+            coverage_files.append(search_dir)
+    
+    # Remove duplicates
+    return list(set(coverage_files))
 
 
 def _add_sambamba_calculated_metrics(report):

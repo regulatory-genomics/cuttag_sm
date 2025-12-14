@@ -18,8 +18,6 @@ def _all_raw_fastqs(sample):
     r1 = rows["R1"].astype(str).tolist()
     r2 = rows["R2"].astype(str).tolist()
     return r1, r2
-
-
 # -------------------------------------------------------------------------
 # Conditional aligner selection (per sample, combining all runs)
 # -------------------------------------------------------------------------
@@ -86,7 +84,7 @@ else:
 # Mark duplicates and index (per sample)
 rule markdup:
     input:
-        rules.align.output.bam
+        bam = rules.align.output.bam
     output:
         bam = f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam",
     conda:
@@ -98,7 +96,7 @@ rule markdup:
         f"{DATA_DIR}/logs/sambamba_markdup_{{sample}}.log"
     shell:
         (
-            f"sambamba markdup --tmpdir={DATA_DIR}/Important_processed/Bam -t {{threads}} {{input}} {{output.bam}} > {{log}} 2>&1"
+            f"sambamba markdup --tmpdir={DATA_DIR}/Important_processed/Bam -t {{threads}} {{input.bam}} {{output.bam}} > {{log}} 2>&1"
         )
 
 # Build BAM index with samtools (more broadly compatible with downstream tools)
@@ -108,7 +106,10 @@ rule index_bam:
     output:
         bai = f"{DATA_DIR}/Important_processed/Bam/{{sample}}.sorted.markd.bam.bai"
     conda:
-        "../envs/align.yml"
-    threads: 2
+        "../envs/samtools.yml"
+    threads: 8
+    resources:
+        runtime = 360,
+        mem_mb = 4*config.get("mem", 8000)
     shell:
         "samtools index -@ {threads} {input} {output}"

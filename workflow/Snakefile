@@ -42,7 +42,6 @@ def _hydrate_config(cfg):
     steps = _get_nested(cfg, "pipeline_steps", default={})
     peaks = _get_nested(steps, "peaks", default={})
     preprocessing = _get_nested(steps, "preprocessing", default={})
-    diffbind = _get_nested(steps, "diffbind", default={})
     workflow_res = _get_nested(cfg, "workflow_resources", default={})
     exec_cfg = _get_nested(workflow_res, "execution", default={})
 
@@ -55,6 +54,9 @@ def _hydrate_config(cfg):
     cfg["USEIGG"] = peaks.get("use_igg", False)
     cfg["IGG"] = peaks.get("igg_token", "IgG")
     cfg["N_INTERSECTS"] = peaks.get("n_intersects", 2)
+    cfg["PEAK_QVAL"] = _get_nested(steps, "peak_qval", default={})
+    cfg["BROAD_MARKS"] = _get_nested(steps, "broad_marks", default=[])
+    cfg["BROAD_PARAMS"] = _get_nested(steps, "broad_params", default={})
     cfg["TRIM_ADAPTERS"] = preprocessing.get("trim_adapters", False)
     cfg["padj_cutoff"] = diffbind.get("padj_cutoff", 0.05)
 
@@ -275,35 +277,15 @@ rule all:
         expand(f"{DATA_DIR}/Report/plotEnrichment/frip_{{sample}}.tsv", sample=sample_noigg),
 
         #expand(f"{DATA_DIR}/callpeaks/{{sample}}_peaks_noBlacklist.bed", sample=samps) if os.path.isfile(blacklist_file) else [],
-
         f"{DATA_DIR}/Report/multiqc/multiqc_report.html",
         f"{DATA_DIR}/Report/multiqc/multiqc_data/multiqc_data.json",
 
-        #expand([f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-rld-pca.pdf",
-        #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-vsd-pca.pdf",
-        #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-normcounts.csv",
-        #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-lognormcounts.csv",
-        #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-rld.pdf",
-        #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-vsd.pdf",
-        #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-vsd-dist.pdf",
-        #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-rld-dist.pdf",
-        #f"{DATA_DIR}/deseq2/{{mark}}/{{mark}}-dds.rds",
-        #f"{DATA_DIR}/homer/{{mark}}.done"], mark=marks_noigg),
-
-        #expand(f"{DATA_DIR}/diffbind/{{mark}}/{{mark}}_DBAobj.rds", mark=marks_noigg),
-        #expand(f"{DATA_DIR}/diffbind/{{mark}}/{{mark}}_pca.pdf", mark=marks_noigg),
         # quality control plots
         f"{DATA_DIR}/Report/fraglen.html",
         f"{DATA_DIR}/Report/plotEnrichment/frip.html",
         f"{DATA_DIR}/Report/peak_stat/peakcount.txt",
         # Genomic coverage report
         f"{DATA_DIR}/Report/coverage_report.tsv",
-        
-        #expand(f"{DATA_DIR}/mergebw/{{mark_condition}}.bw", mark_condition=mark_conditions),
-        #expand(f"{DATA_DIR}/highConf/{{mark_condition}}.highConf.bed", mark_condition=mark_conditions),
-        #f"{DATA_DIR}/custom_report/custom_report.html"
-
-
 
 if config["USE_SINGULARITY"]:
     rule homer:

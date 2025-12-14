@@ -135,41 +135,32 @@ def get_callpeaks(wildcards):
     # Only the BAM is needed by gopeaks; index will be created by previous rule
     return [bam]
 
-def callpeaks_params(wildcards):
-    """
-    Returns callpeaks parameters specified by the user in the samplesheet
-    """
-    row = st[st['sample'] == wildcards.sample]
-    if row.empty or 'gopeaks' not in row.columns:
-        return ""
-    params = str(row['gopeaks'].iloc[0])
-    if params == "-" or params.lower() == "nan":
-        params = ""
-    # append broad flag for me3 marks
-    try:
-        mark = str(row['mark'].iloc[0]).lower()
-        if 'me3' in mark or mark in {"h3k4me3", "h3k27me3"}:
-            params = (params + " --broad").strip()
-    except Exception:
-        pass
-    return params
 
 def macs2_extra_params(wildcards):
+    """
+    Returns MACS2 parameters based on marker type from BROAD_MARKS config.
+    """
     row = st[st['sample'] == wildcards.sample]
-    mark = str(row['mark'].iloc[0]).lower() if not row.empty else ""
+    mark = str(row['mark'].iloc[0]) if not row.empty else ""
+    mark_lower = mark.lower()
     base = "--nomodel --keep-dup all --format BAMPE"
-    if 'me3' in mark or mark in {"h3k4me3", "h3k27me3"}:
+    # Get broad marks from config, convert to lowercase for comparison
+    broad_marks = set(m.lower() for m in config.get('BROAD_MARKS', []))
+    if mark_lower in broad_marks:
         return base + " --broad"
     return base
 
 def get_macs2_outputs(data_dir, igg_name="IgG"):
     """
     Get MACS2 output files based on marker type.
-    Returns broad peak outputs for me3 markers, narrow peak outputs for others.
+    Returns broad peak outputs for markers in BROAD_MARKS config, narrow peak outputs for others.
     Excludes IgG control samples.
     """
     outputs = []
     peak_dir = os.path.join(data_dir, "Important_processed", "Peaks", "callpeaks")
+    # Get broad marks from config, convert to lowercase for comparison
+    broad_marks = set(m.lower() for m in config.get('BROAD_MARKS', []))
+    
     for sample in st['sample'].unique():
         # Skip IgG samples
         if igg_name.lower() in str(sample).lower():
@@ -178,14 +169,15 @@ def get_macs2_outputs(data_dir, igg_name="IgG"):
         row = st[st['sample'] == sample]
         if row.empty:
             continue
-        mark = str(row['mark'].iloc[0]).lower()
+        mark = str(row['mark'].iloc[0])
+        mark_lower = mark.lower()
         
         # Skip if mark is IgG
-        if igg_name.lower() in mark:
+        if igg_name.lower() in mark_lower:
             continue
             
-        # Check if it's a broad peak marker (me3)
-        if mark in {"h3k27me3"}:
+        # Check if it's a broad peak marker based on config
+        if mark_lower in broad_marks:
             # Broad peak outputs
             outputs.extend(
                 [
@@ -206,11 +198,17 @@ def get_macs2_outputs(data_dir, igg_name="IgG"):
     return outputs
 
 def is_broad_mark(wildcards):
+    """
+    Determines if a sample uses broad peak calling based on BROAD_MARKS config.
+    """
     row = st[st['sample'] == wildcards.sample]
     if row.empty:
         return False
-    mk = str(row['mark'].iloc[0]).lower()
-    return ('me3' in mk) or (mk in {"h3k4me3", "h3k27me3"})
+    mark = str(row['mark'].iloc[0])
+    mark_lower = mark.lower()
+    # Get broad marks from config, convert to lowercase for comparison
+    broad_marks = set(m.lower() for m in config.get('BROAD_MARKS', []))
+    return mark_lower in broad_marks
 
 def defect_mode(wildcards, attempt):
     if attempt == 1:
@@ -221,10 +219,14 @@ def defect_mode(wildcards, attempt):
 def get_macs2_peak_files(data_dir, igg_name="IgG"):
     """
     Get all MACS2 peak files (.broadPeak and .narrowPeak) for counting.
+    Uses BROAD_MARKS config to determine which samples use broad peaks.
     Excludes IgG control samples.
     """
     peak_files = []
     peak_dir = os.path.join(data_dir, "Important_processed", "Peaks", "callpeaks")
+    # Get broad marks from config, convert to lowercase for comparison
+    broad_marks = set(m.lower() for m in config.get('BROAD_MARKS', []))
+    
     for sample in st['sample'].unique():
         # Skip IgG samples
         if igg_name.lower() in str(sample).lower():
@@ -233,17 +235,42 @@ def get_macs2_peak_files(data_dir, igg_name="IgG"):
         row = st[st['sample'] == sample]
         if row.empty:
             continue
-        mark = str(row['mark'].iloc[0]).lower()
+        mark = str(row['mark'].iloc[0])
+        mark_lower = mark.lower()
         
         # Skip if mark is IgG
-        if igg_name.lower() in mark:
+        if igg_name.lower() in mark_lower:
             continue
             
-        # Check if it's a broad peak marker (me3)
-        if mark in {"h3k27me3"}:
+        # Check if it's a broad peak marker based on config
+        if mark_lower in broad_marks:
             # Broad peak file
             peak_files.append(f"{peak_dir}/macs2_broad_{sample}_peaks.broadPeak")
         else:
             # Narrow peak file
             peak_files.append(f"{peak_dir}/macs2_narrow_{sample}_peaks.narrowPeak")
     return peak_files
+
+def get_qvalue_for_mark(wildcards):
+    """
+    Returns the q-value threshold for a given sample based on its marker.
+    Looks up the marker from the sample table and matches it with config['PEAK_QVAL'].
+    Returns a default of 0.01 if not specified.
+    """
+    row = st[st['sample'] == wildcards.sample]
+    if row.empty:
+        return 0.01
+    
+    mark = str(row['mark'].iloc[0])
+    # Try exact match first
+    if mark in config.get('PEAK_QVAL', {}):
+        return config['PEAK_QVAL'][mark]
+    
+    # Try case-insensitive match
+    mark_lower = mark.lower()
+    for key, value in config.get('PEAK_QVAL', {}).items():
+        if key.lower() == mark_lower:
+            return value
+    
+    # Default q-value
+    return 0.01

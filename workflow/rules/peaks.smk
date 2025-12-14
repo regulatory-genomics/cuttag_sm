@@ -1,27 +1,6 @@
 
 DATA_DIR = config["output_base_dir"].rstrip("/")
 
-rule callpeaks:
-    input:
-        get_callpeaks
-    output:
-        f"{DATA_DIR}/Important_processed/Peaks/callpeaks/{{sample}}_peaks.bed"
-    conda: 
-        "../envs/gopeaks.yml"
-    singularity:
-        os.path.join(config["SINGULARITY_IMAGE_FOLDER"], "gopeaks.sif")
-    log:
-        f"{DATA_DIR}/logs/{{sample}}_gopeaks.json"
-    threads: 4
-    resources:
-        mem_mb=100000,
-        runtime = 60,
-    params:
-        igg = get_igg,
-        params = callpeaks_params
-    shell:
-        f"gopeaks -b {{input[0]}} {{params.igg}} -o {DATA_DIR}/Important_processed/Peaks/callpeaks/{{wildcards.sample}} {{params.params}} > {{log}} 2>&1"
-
 rule callpeaks_macs2_broad:
     input:
         treatment=lambda wc: get_callpeaks(wc)[0]
@@ -37,7 +16,11 @@ rule callpeaks_macs2_broad:
                 "hs" if "hg" in str(config.get("GENES", "")).lower() else (
                     "mm" if "mm" in str(config.get("GENES", "")).lower() else "hs"
                 )
-            ) + " --nomodel --keep-dup all --broad --broad-cutoff 0.1 -q 0.01"
+            ) + 
+            f" --nomodel --keep-dup all --broad" +
+            (f" --slocal {config['BROAD_PARAMS']['slocal']}" if 'slocal' in config.get('BROAD_PARAMS', {}) else "") +
+            (f" --max-gap {config['BROAD_PARAMS']['max-gap']}" if 'max-gap' in config.get('BROAD_PARAMS', {}) else "") +
+            (f" --broad-cutoff {config['BROAD_PARAMS']['broad-cutoff']}" if 'broad-cutoff' in config.get('BROAD_PARAMS', {}) else " --broad-cutoff 0.1")
         ))
     threads: 4
     resources:
@@ -61,7 +44,7 @@ rule callpeaks_macs2_narrow:
                 "hs" if "hg" in str(config.get("GENES", "")).lower() else (
                     "mm" if "mm" in str(config.get("GENES", "")).lower() else "hs"
                 )
-            ) + " --nomodel --keep-dup all -q 0.01"
+            ) + f" --nomodel --keep-dup all -q {get_qvalue_for_mark(wc)}"
         ))
     threads: 4
     resources:
@@ -181,7 +164,7 @@ rule genomic_coverage:
         ),
         chrom_sizes=config["CSIZES"]
     output:
-        f"{DATA_DIR}/Important_processed/Peaks/coverage/{{sample}}_coverage.tsv"
+        f"{DATA_DIR}/Report/peak_stat/coverage/{{sample}}_coverage.tsv"
     conda:
         "../envs/bedtools.yml"
     singularity:
@@ -213,9 +196,9 @@ rule genomic_coverage:
 
 rule coverage_report:
     input:
-        expand(f"{DATA_DIR}/Important_processed/Peaks/coverage/{{sample}}_coverage.tsv", sample=sample_noigg)
+        expand(f"{DATA_DIR}/Report/peak_stat/coverage/{{sample}}_coverage.tsv", sample=sample_noigg)
     output:
-        f"{DATA_DIR}/Report/coverage_report.tsv"
+        f"{DATA_DIR}/Report/peak_stat/coverage_report.tsv"
     log:
         f"{DATA_DIR}/logs/coverage_report.log"
     shell:
@@ -227,4 +210,29 @@ rule coverage_report:
         for file in {input}; do
             tail -n +2 "$file" >> {output}
         done
+        """
+
+
+
+rule count_peaks:
+    input:
+        get_macs2_peak_files(DATA_DIR, config["IGG"])
+    output:
+        f"{DATA_DIR}/Report/peak_stat/peakcount.txt"
+    log:
+        f"{DATA_DIR}/logs/count_peaks.log"
+    shell:
+        """
+        echo "Input files: {input}" > {log}
+        echo "Number of input files: $(echo '{input}' | wc -w)" >> {log}
+        
+        if [ -z "{input}" ]; then
+            echo "No input files, creating empty output" >> {log}
+            : > {output}
+        else
+            echo "Processing input files" >> {log}
+            wc -l {input} \
+            | awk '$2 != "total" {{file=$2; gsub(\".*/macs2_(broad|narrow)_\",\"\",file); gsub(\"_peaks\\\\.(broadPeak|narrowPeak)\",\"\",file); print file, $1}}' \
+            > {output}
+        fi
         """
