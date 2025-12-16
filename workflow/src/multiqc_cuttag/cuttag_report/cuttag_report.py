@@ -231,6 +231,7 @@ def cuttag_report_after_modules():
         _inject_deeptools_enrichment(report)
         _inject_peak_counts(report)
         _inject_genomic_coverage(report)
+        _inject_preseq_200th(report)
         _add_sambamba_calculated_metrics(report)
         
         # Normalize sample names
@@ -520,6 +521,91 @@ def _inject_genomic_coverage(report):
         "scale": "Blues",
         "hidden": True,
     }
+
+
+def _inject_preseq_200th(report):
+    """
+    Parse preseq lcextrap output files and extract the 200th row value (expected distinct reads at ~200M depth).
+    This represents the library complexity at high sequencing depth.
+    """
+    preseq_files = _find_preseq_files()
+    if not preseq_files:
+        log.debug("No preseq lcextrap files found")
+        return
+    
+    data = {}
+    for preseq_file in preseq_files:
+        try:
+            # Extract sample name from filename (e.g., lcextrap_2B2_CUT11.txt -> 2B2_CUT11)
+            sample = os.path.basename(preseq_file).replace("lcextrap_", "").replace(".txt", "")
+            
+            # Read the file and get the 200th row (line 201 including header)
+            with open(preseq_file, "r") as fh:
+                lines = fh.readlines()
+                if len(lines) >= 201:  # Header + 200 data rows
+                    row_200 = lines[200].strip().split("\t")
+                    if len(row_200) >= 2:
+                        try:
+                            # Column 0: TOTAL_READS, Column 1: EXPECTED_DISTINCT
+                            expected_distinct = float(row_200[1])
+                            data[sample] = {"preseq_200M": expected_distinct}
+                            log.info(f"Added preseq 200th row for sample '{sample}': {expected_distinct:,.0f}")
+                        except (ValueError, IndexError) as e:
+                            log.warning(f"Could not parse preseq value from {preseq_file}: {e}")
+        except Exception as exc:
+            log.warning(f"Could not parse {preseq_file}: {exc}")
+    
+    if not data:
+        return
+    
+    _ensure_report_structures(report)
+    module_name = "preseq_complexity"
+    report.general_stats_data[module_name] = data
+    report.general_stats_headers[module_name] = OrderedDict()
+    report.general_stats_headers[module_name]["preseq_200M"] = {
+        "title": "Preseq 200M",
+        "description": "Expected distinct reads at 200M depth (library complexity)",
+        "format": "{:,.0f}",
+        "scale": "RdYlGn",
+        "min": 0,
+    }
+
+
+def _find_preseq_files():
+    """Search for preseq lcextrap output files in common output locations."""
+    search_dirs = []
+    
+    # Analysis directories
+    if hasattr(config, "analysis_dir") and config.analysis_dir:
+        analysis_dirs = config.analysis_dir if isinstance(config.analysis_dir, list) else [config.analysis_dir]
+        for adir in analysis_dirs:
+            if adir:
+                search_dirs.extend([
+                    adir,
+                    os.path.join(adir, "Report", "preseq"),
+                    os.path.join(adir, "preseq"),
+                ])
+    
+    # Output directory
+    if hasattr(config, "output_dir") and config.output_dir:
+        search_dirs.extend([
+            config.output_dir,
+            os.path.join(config.output_dir, "Report", "preseq"),
+            os.path.join(config.output_dir, "preseq"),
+        ])
+    
+    # Search for files
+    preseq_files = []
+    for search_dir in search_dirs:
+        if not os.path.isdir(search_dir):
+            continue
+        for filename in os.listdir(search_dir):
+            if filename.startswith("lcextrap_") and filename.endswith(".txt"):
+                filepath = os.path.join(search_dir, filename)
+                if os.path.isfile(filepath):
+                    preseq_files.append(filepath)
+    
+    return preseq_files
 
 
 def _find_coverage_files():
