@@ -166,29 +166,6 @@ class MultiqcModule(BaseMultiqcModule):
                         data[sample_name][column] = self.sample_sas_dict[sample_name][
                             column
                         ]
-
-            # Copy and type-cast metrics
-            if (
-                "NSC" in self.cuttag_data[sample_name]
-                and self.cuttag_data[sample_name]["NSC"] != "nan"
-            ):
-                try:
-                    value = float(self.cuttag_data[sample_name]["NSC"])
-                except ValueError as err:  # pragma: no cover - defensive
-                    log.debug(err)
-                    value = None
-                data[sample_name]["NSC"] = value
-
-            if (
-                "RSC" in self.cuttag_data[sample_name]
-                and self.cuttag_data[sample_name]["RSC"] != "nan"
-            ):
-                try:
-                    value = float(self.cuttag_data[sample_name]["RSC"])
-                except Exception:  # pragma: no cover - defensive
-                    value = None
-                data[sample_name]["RSC"] = value
-
             if "peaks" in self.cuttag_data[sample_name]:
                 try:
                     value = int(self.cuttag_data[sample_name]["peaks"])
@@ -209,16 +186,6 @@ class MultiqcModule(BaseMultiqcModule):
                 except Exception:
                     value = None
                 data[sample_name]["frip"] = value
-
-            if "regulatory_fraction" in self.cuttag_data[sample_name]:
-                try:
-                    value = float(self.cuttag_data[sample_name]["regulatory_fraction"])
-                except Exception:
-                    value = None
-                data[sample_name]["regulatory_fraction"] = value
-
-            if "tss_max" in self.cuttag_data[sample_name]:
-                data[sample_name]["tss_max"] = self.cuttag_data[sample_name]["tss_max"]
 
             # The following fields are kept minimal and only use values
             # present in the main '*.stats.tsv' files.
@@ -274,53 +241,6 @@ class MultiqcModule(BaseMultiqcModule):
             },
         )
 
-        add_header_if_visible(
-            "NSC",
-            {
-                "description": "Normalized Strand Cross-correlation Coefficient",
-                "title": "NSC",
-                "scale": "Reds",
-                "min": 0.0,
-                "max": 2.0,
-                "format": "{:.2f}",
-            },
-        )
-
-        add_header_if_visible(
-            "NSC_PCT",
-            {
-                "description": "NSC Percentile Among All CUT&Tag samples",
-                "title": "NSC_PCT",
-                "scale": "Reds",
-                "suffix": "%",
-                "max": 100,
-                "format": "{:,.0f}",
-            },
-        )
-
-        add_header_if_visible(
-            "RSC",
-            {
-                "description": "Relative Strand Cross-correlation Coefficient",
-                "title": "RSC",
-                "scale": "Reds",
-                "min": 0.0,
-                "max": 2.0,
-                "format": "{:.2f}",
-            },
-        )
-
-        add_header_if_visible(
-            "RSC_PCT",
-            {
-                "description": "RSC Percentile Among All CUT&Tag samples",
-                "title": "RSC_PCT",
-                "scale": "Reds",
-                "suffix": "%",
-                "max": 100,
-                "format": "{:,.0f}",
-            },
-        )
 
         add_header_if_visible(
             "frip",
@@ -331,28 +251,6 @@ class MultiqcModule(BaseMultiqcModule):
                 "min": 0.0,
                 "max": 1.0,
                 "format": "{:.2f}",
-            },
-        )
-
-        add_header_if_visible(
-            "regulatory_fraction",
-            {
-                "description": "Fraction of Reads in Regulatory Regions",
-                "title": "Regulatory",
-                "scale": "Reds-rev",
-                "min": 0.0,
-                "max": 1.0,
-                "format": "{:.2f}",
-            },
-        )
-
-        add_header_if_visible(
-            "tss_max",
-            {
-                "description": "The peak value of TSS enrichment",
-                "title": "TSS",
-                "scale": "Reds-rev",
-                "format": "{:.1f}",
             },
         )
 

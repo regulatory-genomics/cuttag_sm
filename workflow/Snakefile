@@ -58,7 +58,6 @@ def _hydrate_config(cfg):
     cfg["BROAD_MARKS"] = _get_nested(steps, "broad_marks", default=[])
     cfg["BROAD_PARAMS"] = _get_nested(steps, "broad_params", default={})
     cfg["TRIM_ADAPTERS"] = preprocessing.get("trim_adapters", False)
-    cfg["padj_cutoff"] = diffbind.get("padj_cutoff", 0.05)
 
     cfg["USE_SINGULARITY"] = exec_cfg.get("use_singularity", False)
     cfg["SINGULARITY_IMAGE_FOLDER"] = exec_cfg.get("singularity_image_folder", "")
@@ -230,9 +229,6 @@ st = annot
 #deseq2_md = pd.read_table("config/deseq2_metadata.csv", sep = ",").set_index('sample', drop = False)
 #validate(deseq2_md, schema="../schemas/deseq2.schema.yml")
 
-#diffbind_md = pd.read_table("config/diffbind_config.csv", sep = ",").set_index('SampleID', drop = False)
-#validate(diffbind_md, schema="../schemas/diffbind.schema.yml")
-
 # parse config files
 
 samps = get_samples()
@@ -249,7 +245,6 @@ marks_noigg = [m for m in marks if config["IGG"] not in m]
 blacklist_file = config["BLACKLIST"].strip()
 
 include: "rules/align.smk"
-include: "rules/diff.smk"
 include: "rules/peaks.smk"
 include: "rules/postalign.smk"
 include: "rules/preprocess.smk"
@@ -285,7 +280,7 @@ rule all:
         f"{DATA_DIR}/Report/plotEnrichment/frip.html",
         f"{DATA_DIR}/Report/peak_stat/peakcount.txt",
         # Genomic coverage report
-        f"{DATA_DIR}/Report/coverage_report.tsv",
+        f"{DATA_DIR}/Report/peak_stat/coverage_report.tsv",
 
 if config["USE_SINGULARITY"]:
     rule homer:

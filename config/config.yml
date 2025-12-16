@@ -3,7 +3,7 @@ project_info:
   description: "CUT&Tag macrophage"
   genome: "hg38"
   samples:
-    table: "../config/20251209_cuttag_sample.csv"
+    table: "../config/20251215_cuttag_sample.csv"
     pep_config: "../config/pep/project_config.yaml"
     pep_attributes:
       raw_data_attribute: "raw_data|data/raw"

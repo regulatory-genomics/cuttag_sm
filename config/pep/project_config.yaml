@@ -2,7 +2,7 @@ pep_version: "2.1.0"
 
 project:
   name: "20251210_cuttag_run"
-  sample_table: "../20251209_cuttag_sample.csv"
+  sample_table: "../20251215_cuttag_sample.csv"
   raw_data: "/storage/zhangkaiLab/resource/Collaborators/Hanjie_Li/CUT-seq"
 
 paths:
