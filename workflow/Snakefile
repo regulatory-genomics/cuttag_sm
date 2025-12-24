@@ -70,7 +70,7 @@ def _hydrate_config(cfg):
     cfg["BLACKLIST"] = refs.get("blacklist", "") or ""
 
 
-configfile: "config/config.yml"
+configfile: "config/config_test.yml"
 _hydrate_config(config)
 validate(config, schema="../schemas/config.schema.yml")
 
@@ -249,6 +249,7 @@ include: "rules/peaks.smk"
 include: "rules/postalign.smk"
 include: "rules/preprocess.smk"
 include: "rules/qc.smk"
+include: "rules/reproducibility.smk"
 localrules: frip_plot, fraglength_plot
 
 #singularity: "library://gartician/miniconda-mamba/4.12.0:sha256.7302640e37d37af02dd48c812ddf9c540a7dfdbfc6420468923943651f795591"
@@ -281,6 +282,19 @@ rule all:
         f"{DATA_DIR}/Report/peak_stat/peakcount.txt",
         # Genomic coverage report
         f"{DATA_DIR}/Report/peak_stat/coverage_report.tsv",
+        # Reproducibility outputs
+        expand(
+            f"{DATA_DIR}/Report/bamReproducibility/{{sample_rep}}_global_rep_cor.txt",
+            sample_rep=get_sample_reps()
+        ),
+        expand(
+            f"{DATA_DIR}/Report/bamReproducibility/{{sample_rep}}_global_rep_heatmap.pdf",
+            sample_rep=get_sample_reps()
+        ),
+        expand(
+            f"{DATA_DIR}/Report/bedtools_jaccard/{{sample_rep}}_jaccard.txt",
+            sample_rep=get_sample_reps()
+        ),
 
 if config["USE_SINGULARITY"]:
     rule homer:

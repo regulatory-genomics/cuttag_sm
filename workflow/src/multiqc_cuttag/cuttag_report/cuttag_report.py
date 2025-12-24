@@ -90,7 +90,6 @@ def _setup_search_patterns():
         {
             "peaks": {"fn": "*.counts.txt"},
             "fraglen": {"fn": "*.fraglen.tsv"},
-            "diffpeaks": {"fn": "*diffexp-summary.txt"},
         },
     )
 
@@ -125,18 +124,6 @@ def _setup_custom_data():
                     "title": "sample fragment length distribution",
                     "xlab": "fragment length",
                     "ylab": "counts",
-                },
-            },
-            "diffpeaks": {
-                "file_format": "txt",
-                "section_name": "Differential peaks",
-                "description": "Differential peaks for each condition",
-                "plot_type": "bargraph",
-                "pconfig": {
-                    "id": "diff peaks bargraph",
-                    "title": "Condition Differential Peaks",
-                    "ylab": "Number of differential peaks",
-                    "xlab": "condition",
                 },
             },
         },

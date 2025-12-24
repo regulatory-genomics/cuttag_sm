@@ -150,6 +150,18 @@ def macs2_extra_params(wildcards):
         return base + " --broad"
     return base
 
+def get_sample_reps():
+    """
+    Return list of sample_base values that have more than 1 sample (replicates).
+    These are the sample_rep values used in reproducibility rules.
+    """
+    if "sample_base" not in st.columns:
+        return []
+    # Get sample_base values that have more than 1 sample
+    sample_base_counts = st.groupby("sample_base")["sample"].nunique()
+    sample_reps = sample_base_counts[sample_base_counts > 1].index.tolist()
+    return sorted(sample_reps)
+
 def get_macs2_outputs(data_dir, igg_name="IgG"):
     """
     Get MACS2 output files based on marker type.

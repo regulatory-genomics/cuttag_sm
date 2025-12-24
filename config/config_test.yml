@@ -1,0 +1,73 @@
+project_info:
+  name: "20251111_cuttag_test"
+  description: "CUT&Tag macrophage"
+  genome: "hg38"
+  samples:
+    table: "../config/samplesheet_test.csv"
+    pep_config: "../config/pep/pep_test.yaml"
+    pep_attributes:
+      raw_data_attribute: "raw_data|data/raw"
+      fastq_pairs:
+        R1: "{raw_data|data/raw}/{fastq_id}_R1.fastq.gz"
+        R2: "{raw_data|data/raw}/{fastq_id}_R2.fastq.gz"
+  data:
+    raw_data_root: "{raw_data}"
+  outputs:
+    root: "{process_dir}/{project_name}/"
+    structure:
+      important_processed:
+        bam: "important_processed/bam"
+        track: "important_processed/track"
+        peaks: "important_processed/peaks"
+      downstream_res:
+        homer: "downstream_res/homer"
+        deseq2: "downstream_res/deseq2"
+        counts: "downstream_res/counts"
+      middle_file:
+        trimmed_fastq: "middle_file/trimmed_fastq"
+      refs: "refs"
+      envs: "envs"
+      report: "report"
+      logs: "logs"
+
+workflow_resources:
+  execution:
+    use_singularity: true
+    singularity_image_folder: "/home/groups/MaxsonLab/software/singularity-containers/pipeline_containers/cuttag/image_files"
+  compute:
+    threads_default: 8
+    memory_gb_default: 32
+  profiles:
+    cluster_config: "config/cluster.yaml"
+
+pipeline_steps:
+  preprocessing:
+    trim_adapters: true
+  alignment:
+    aligner: "bowtie2"
+  peaks:
+    use_igg: false
+    igg_token: "IgG"
+    n_intersects: 2
+  peak_qval:
+    CTCF: 0.0001
+    H3K4me1: 0.001
+    H3K4me3: 0.001
+    H3K4me2: 0.001
+    PU.1: 0.000001
+    H3K27ac: 0.001
+    GATA: 0.0001
+  broad_marks:
+    - H3K27me3
+    - H3K9me3
+  broad_params:
+    slocal: 10000
+    max-gap: 1000
+    broad-cutoff: 0.01
+reference:
+  genome_index: "{database_dir}/hg38/indices_for_Bowtie2/hg38"
+  genome_fasta: "{database_dir}/hg38/hg38.fa"
+  genes_bed: "genes/hg38_refseq_genes.bed"
+  chrom_sizes: "genes/hg38.chrom.sizes"
+  adapter_fasta: "genes/adapter_seqs.fa"
+  blacklist: ""
